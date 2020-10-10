@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />       
+        <title> RFID嵌入式工作站 </title>
+        <!-- jquery easyui import -->
+        <script type="text/javascript" src="jquery.min.js"></script>
+        <script type="text/javascript" src="jquery.easyui.min.js"></script>
+        <script type="text/javascript" src="easyui-lang-zh_CN.js"></script>        
+        <link rel="stylesheet" type="text/css" href="easyui.css">
+        <link rel="stylesheet" type="text/css" href="icon.css">
+        <!-- 自定义style -->
+        <link rel="stylesheet" type = "text/css" href = "urfidwr.css"/>
+        <!-- 必须加的一个js接口文件 -->
+        <script type="text/javascript" src="./qwebchannel.js"></script>
+        <!-- 应用js-->
+        <script type="text/javascript" src="utils.js"></script>
+        <script type="text/javascript" src="urfidwr.js"></script>
+
+        <style>
+        </style>
+        <script type="text/javascript">        
+        </script>
+    </head>
+    <body class="easyui-layout">
+        <div id="banner" data-options="region:'north',border:false" >            
+            图书电子标签制作系统
+        </div>
+        <!-- 左侧边栏，功能选单-->
+        <div id="menuRegion" data-options="region:'west',split:true,title:'功能'" style="width:12%; padding:2px;">
+            <div id="functionMenu" class="easyui-accordion" style="height:300px" >
+                <div title="制作" data-options="iconCls:'icon-print',selected:true" >
+                    <p>制作电子标签.扫描条码写入RFID标签</p>
+                </div>
+                <div title="点验" data-options="iconCls:'icon-sum',selected:false" >
+                    <p>扫描标签盘点图书</p>
+                </div>
+                <div title="数据管理" >
+                    <p>导出作业数据</p>
+                </div>
+                <div title="系统">
+                    <p>设置参数</p><br/>
+                    <a id="btnClose" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',size:'large'"
+                        style="width:100%; margin-bottom: 30px;">退出</a>
+                </div>
+            </div>
+            <div style="margin-top:80px">
+                <input id="genClock" class="easyui-textbox" data-options="editable:false" style="width:100%;height:60px">
+            </div>
+        </div>    
+            
+        <!-- 右侧边栏，控制面板 -->
+        <div id="toolsRegion" data-options="region:'east',split:true,title:'控制面板'" style="width:14%; padding:0px;margin:0px">
+            <div id="wrtagTools" class="easyui-panel" title="写标签工具" data-options="closed:false,fit:true"
+                    style="width:100%; padding:0px;" >
+                <a id="btnFindTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search',size:'large'"
+                    style="width:100%; margin-bottom: 30px;">查找标签</a>
+                <a id="btnWriteTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok',size:'large'"
+                    style="width:100%; margin-bottom: 30px">写标签</a>
+                <a id="btnKillTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',size:'large'"
+                    style="width:100%;">标签灭活</a>
+            </div>
+            <div id="inventTools" class="easyui-panel" data-options="closed:true,fit:true" title="点验工具"
+                    style="width:100%; padding:0;" >
+                <a id="btnInventNewGrp" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok',size:'large'"
+                    style="width:100%; margin-bottom: 10px">新建分组</a>
+                <a id="btnInventMode" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok',toggle:true,size:'large'"
+                    style="width:100%; margin-bottom: 30px">精细扫描</a>
+                <a id="btnInventRun" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search',size:'large'"
+                    style="width:100%; margin-bottom: 40px">点验</a>
+                <div style="width:100%; margin-bottom: 10px">
+                    <select id="inventSpeed" class="easyui-combobox" label="速度:" data-options=
+                        "labelPosition:'left',labelAlign:'right', labelWidth:'60px', panelHeight:'140px'" style="width:100%;">
+                    <option value="150">连续</option>
+                    <option value="200">200ms</option>
+                    <option value="350">350ms</option>
+                    <option value="1000">1s</option>
+                    </select>
+                </div>
+
+            </div>
+            <div id="dbManageTools" class="easyui-panel" data-options="closed:true, fit:true" title="数据管理工具"
+                    style="width:100%; padding:0;" >
+                <a id="exportFile" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
+                    style="width:100%;height:40px; margin-bottom: 5px">导出到文件</a>                
+                <a id="fileCopy2Sd" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
+                    style="width:100%;height:40px; margin-bottom: 5px">复制到SD卡/U盘</a> <br/>
+                <a id="fileUpload" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
+                    style="width:100%;height:40px; margin-bottom: 5px">上传文件</a> <br/>                              
+                <a id="fileDelete" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
+                    style="width:100%;height:40px;">删除文件</a>                
+            </div>
+        </div>
+        <!-- 底栏， 状态提示-->
+        <div id="statusBar" data-options="region:'south',split:true">
+        </div>
+        <!-- 中间栏，主工作区-->
+        <div data-options="region:'center'">
+            <!-- 1. 写标签界面 -->
+            <div id="wrtagPanel" class="easyui-panel" data-options="closed:false,fit:true" title="标签制作" style="width:100%">
+                <!--条码输入区-->
+                <div id="barcodeInPanel" >
+                    <input id="barcodeInput" class="easyui-textbox" label="条码:" data-options="labelPosition:'left', 
+                        labelAlign:'right'" style="width:35%; height: 95%">
+                    <input id="barcodeStatus" type="text" style="width:28%;" value="状态提示">
+                    <input id="usingTag" class="easyui-textbox" data-options="editable:false"
+                        style="width:35%; height:30px; padding:0; ">
+                </div>
+                <!-- 找到的标签 -->
+                <table id="foundtagTab" class="easyui-datagrid" title="电子标签"  fitcolumns="true" style="height:280px; width: 100%"
+                    data-options="singleSelect:true,rownumbers:false,collapsible:false,url:'',method:'get'">
+                    <thead>
+                        <tr>
+                        <th data-options="field:'itemid',width:50">ID</th>
+                        <th data-options="field:'epc',width:250">标签号(EPC)</th>
+                        <th data-options="field:'context',width:180">内容(条码)</th>
+                        <th data-options="field:'format',width:65">格式</th>
+                        <th data-options="field:'epcBits',width:50">容量</th>
+                        <th data-options="field:'tagserial',width:140">标签序列号</th>
+                        <th data-options="field:'usingmode',width:80">状态</th>
+                        <th data-options="field:'hitCount',width:50">计数</th>
+                        <th data-options="field:'passwd',width:160">密码</th>
+                        </tr>
+                    </thead>
+                </table>
+                <!--写事件记录 -->
+                <div id="writedSumeInfo">
+                    <input id="writedCount" class="easyui-textbox" label="已写总数:" data-options="labelPosition:'left', 
+                        labelWidth:'120px',labelAlign:'right',editable:false" style="width:25%; height: 95%;">
+                    <input id="killCount" class="easyui-textbox" label="灭活计数:" data-options="labelPosition:'left',
+                        labelWidth:'100px',labelAlign:'right',editable:false" style="width:20%">
+                </div>
+                <table id="wrEventTab" class="easyui-datagrid" title="写录事件表" fitcolumns="true"
+                    style="width: 100%;height:500px" data-options="
+                        singleSelect:true,rownumbers:true, autoRowHeight:false,
+                        pagination:true,pageSize:10,
+                        collapsible:true">
+                    <thead>
+                        <tr>
+                        <th data-options="field:'count',width:80">计数</th>
+                        <th data-options="field:'evtype',width:60">类型</th>
+                        <th data-options="field:'wrtime',width:100">时间</th>
+                        <th data-options="field:'context',width:180">内容(条码)</th>
+                        <th data-options="field:'tagserial',width:140">标签序列号</th>
+                        <th data-options="field:'epc',width:240">标签号(EPC)</th>
+                        <th data-options="field:'wrUsrBank',width:60, formatter:formatCheckedColumn">UsrBank</th>
+                        <th data-options="field:'locked',width:50,formatter:formatCheckedColumn">加密</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <!--2. 点验界面 -->       
+            <div id="inventPanel" class="easyui-panel" data-options="closed:true" title="点验标签" style="width:100%;">
+                <div id="inventInfoPanel" style= "height: 40px; margin-top: 5px;margin-bottom: 5px; font-size: 1.2em">
+                    <input id="inventTagCount" class="easyui-textbox" label="发现标签数:"
+                        data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'120px'"
+                        style="width:25%; height: 90%">
+                    <input id="inventFmtTagCount" class="easyui-textbox" label="标准格式标签数:"
+                        data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'150px'"
+                        style="width:25%; height: 90%">
+                    <input id="inventRunCount" class="easyui-textbox" label="扫描:"
+                        data-options="editable:false, labelPosition:'left', labelAlign:'right'"
+                        style="width:20%; height: 90%">
+                </div>
+                <div>
+                    <table id="inventTab" class="easyui-datagrid" title="发现标签表" fitcolumns="true"
+                        style="width: 100%;height:760px"
+                        data-options="singleSelect:true,rownumbers:true,collapsible:true, autoRowHeight:false,
+                                pagination:true, pageSize:20">
+                        <thead>
+                            <tr>
+                            <th data-options="field:'id',width:60">序号</th>
+                            <th data-options="field:'epc',width:240">标签号(EPC)</th>
+                            <th data-options="field:'context',width:180">馆藏编码(条码)</th>
+                            <th data-options="field:'formatId',width:60">格式</th>
+                            <th data-options="field:'securityBit',width:70,formatter:formatCheckedColumn">安全位</th>
+                            <th data-options="field:'title',width:180">名称</th>
+                            <th data-options="field:'hitCount',width:60">计数</th>
+                            <th data-options="field:'hitTime',width:100">时间点</th>
+                            <th data-options="field:'groupId',width:60">分组</th>
+                            </tr>
+                        </thead>
+                    </table>    
+                </div>
+            </div>
+            <!--3. 数据管理界面 -->       
+            <div id="dbManagePanel" class="easyui-panel" data-options="closed:true" title="数据管理" style="width:100%">
+                <!-- 两个表格，tab分页 -->
+                <div id="dbTableSelect" class="easyui-tabs" >
+                    <div title="标签制作记录" style="padding:0px;">
+                        <table id="wrEventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:350px"
+                            data-options="singleSelect:true,rownumbers:true,collapsible:true,url:'',method:'get'">
+                            <thead>
+                                <tr>
+                                <th data-options="field:'count',width:80">计数</th>
+                                <th data-options="field:'evtype',width:60">类型</th>
+                                <th data-options="field:'wrtime',width:100">时间</th>
+                                <th data-options="field:'context',width:180">内容(条码)</th>
+                                <th data-options="field:'tagserial',width:140">标签序列号</th>
+                                <th data-options="field:'epc',width:240">标签号(EPC)</th>
+                                <th data-options="field:'wrUsrBank',width:60, formatter:formatCheckedColumn">UsrBank</th>
+                                <th data-options="field:'locked',width:50,formatter:formatCheckedColumn">加密</th>
+                                </tr>
+                            </thead>
+                        </table>        
+                    </div>
+                    <div title="点验记录" style="padding:0px">
+                        <table id="inventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:350px"
+                            data-options="singleSelect:true,rownumbers:true,collapsible:true,url:'',method:'get'">
+                        <thead>
+                            <tr>
+                            <th data-options="field:'id',width:60">序号</th>
+                            <th data-options="field:'epc',width:240">标签号(EPC)</th>
+                            <th data-options="field:'context',width:180">馆藏编码(条码)</th>
+                            <th data-options="field:'formatId',width:60, formatter:formatCheckedColumn">格式</th>
+                            <th data-options="field:'securityBit',width:50,formatter:formatCheckedColumn">安全位</th>
+                            <th data-options="field:'title',width:180">书名</th>
+                            <th data-options="field:'inventGrp',width:60">分组</th>
+                            </tr>
+                        </thead>
+                        </table>    
+                    </div>
+                </div>
+                <!-- 辅助信息 -->
+                <div style="margin-top: 2px"> 
+                    <input id="dbExportSel" class="easyui-switchbutton" checked style="width:150px;" 
+                        data-options="onText:'未导出数据',offText:'全部数据'" > 
+                </div>
+                <div style="margin-top: 8px; margin-bottom: 10px">
+                    <input id="exportFilepath" class="easyui-textbox" label="导出文件名:" data-options="labelPosition:'left', 
+                        labelAlign:'right'" style="width:45%;"> <br/>
+                    <input id="upLoadUrl" class="easyui-textbox" label="上传路径:" data-options="labelPosition:'left', 
+                        labelAlign:'right'" style="width:45%;"> <br/>
+                    <input id="recEmail" class="easyui-textbox" label="接收email:" data-options="labelPosition:'left', 
+                        labelAlign:'right'" style="width:45%;">
+                </div>
+            </div>  
+
+            <!--4. 系统配置界面 -->       
+            <div id="configPanel" class="easyui-panel" data-options="closed:true" title="系统配置" style="width:100%">
+            </div>    
+        </div>
+    </body>
+</html>

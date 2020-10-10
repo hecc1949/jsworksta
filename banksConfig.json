@@ -1,0 +1,8 @@
+{
+    "WriteUsrBank": true,
+    "setLocker": false,
+    "LockAction": 2,
+    "WriteAccessPasswd": true,
+    "AccessPasswd": "11111111",
+    "KillPasswd": "00000000"
+}

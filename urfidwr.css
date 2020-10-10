@@ -1,0 +1,123 @@
+body {
+    font-family: msyh,arial,sans-serif;
+    padding:20px;
+    font-size:16px;
+    margin:0;
+}
+
+#banner  {
+    background-image:url('images/411.png'); 
+    color:blue;
+    font-size:2em;
+    font-family: msyh;
+    margin:0;
+    margin-bottom:10px;
+    text-align: center; 
+    height:60px;        /* 1280 =50px   */
+    margin-top:5px;
+    margin-bottom:5px;
+}
+
+
+#statusBar  {
+    height:36px; 
+    background:rgb(101, 159, 235); 
+    padding:1px;
+}
+
+#genClock  {
+    background-color:rgb(225, 231, 206);
+    text-align:center;
+    font-size:1.5em;    /* 无效 */
+    color:red;
+}
+
+
+#wrtagPanel, #inventPanel,#dbManagePanel,#configPanel    {
+    padding:0;
+    border:0;
+    margin:0px
+} 
+
+#barcodeInPanel, #writedSumeInfo {
+    margin-top: 5px; 
+    margin-bottom: 5px;
+    font-size: 1.2em;
+    height:40px;
+}
+.easyui-textbox, #barcodeStatus  {
+    vertical-align: middle;
+}
+
+#barcodeStatus   {
+    background-color:rgb(225, 231, 206);
+    border: 0; 
+    text-align:center;  /* xx */
+    font-size:1.5em;    /* xx */
+}
+
+/*
+#inventTagCount .textbox-text,
+#inventFmtTagCount .textbox-text,
+#inventRunCount .textbox-text   {
+.easyui-textbox .textbot-text   {
+    font-size: 1.8em;
+    font-weight:bold;
+    color:blue
+}
+*/
+
+/*
+#fundtagTabDiv, #foundtagTab    {
+    width: 100%;
+    height:280px; 
+}
+*/
+
+.panel-title,
+.datagrid-header .datagrid-cell span,
+.datagrid-cell,
+.datagrid-cell-group,
+.datagrid-header-rownumber,
+.datagrid-cell-rownumber    {
+    font-size: 18px;
+    font-weight: normal;
+    font-family: msyh;
+}
+
+.easyui-linkbutton .l-btn-text {
+    font-size: 1.2em;
+}
+
+.pagination-link .l-btn-text, .pagination-info {
+    font-size: 1.5em;
+    font-weight: normal;
+    font-family: msyh;
+}
+
+/*
+.textbox .textbot-text  {
+    font-size: 2.4em;
+    color: blue;
+}
+*/
+
+.combobox-item  {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+/*
+.combo .combo-text, .combobox-stick  {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+*/
+
+#writedCount    {
+    background-color: rgb(196, 196, 174);
+    border: 0; 
+    text-align:center;
+    font-size:18px,
+    color: blue;
+}

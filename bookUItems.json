@@ -1,0 +1,132 @@
+{
+    "userItems": [
+        {
+            "oid" : "3",
+            "bytes" : 2,
+            "bit_pos" : 0,
+            "name_c" : "所属馆标识",
+            "name_e" : "Owner Library",
+            "content" : "752"
+        },
+        {
+            "oid" : "4",
+            "bytes" : 4,
+            "bit_pos" : 1,
+            "name_c" : "卷册信息",
+            "name_e" : "Set Information",
+            "content" : ""
+        },
+        {
+            "oid" : "5",
+            "bytes" : 2,
+            "bit_pos" : 2,
+            "name_c" : "馆藏类别与状态",
+            "name_e" : "Type of Usage",
+            "content" : ""
+        },
+        {
+            "oid" : "6",
+            "bytes" : 0,
+            "bit_pos" : 3,
+            "name_c" : "馆藏位置",
+            "name_e" : "Item Location",
+            "content" : ""
+        },
+        {
+            "oid" : "11",
+            "bytes" : -1,
+            "bit_pos" : 4,
+            "name_c" : "馆际互借借入馆",
+            "name_e" : "ILL Borrowing Library",
+            "content" : ""
+        },
+        {
+            "oid" : "12",
+            "bytes" : -1,
+            "bit_pos" : 5,
+            "name_c" : "馆际互借事务号",
+            "name_e" : "ILL Borrowing Transaction Number",
+            "content" : ""
+        },
+        {
+            "oid" : "14",
+            "bytes" : -1,
+            "bit_pos" : 6,
+            "name_c" : "备选的馆藏标识符",
+            "name_e" : "Alternative Item Identifier",
+            "content" : ""
+        },
+        {
+            "oid" : "15",
+            "bytes" : -1,
+            "bit_pos" : 7,
+            "name_c" : "临时馆藏位置",
+            "name_e" : "Temporary Item Location",
+            "content" : ""
+        },
+        {
+            "oid" : "16",
+            "bytes" : -1,
+            "bit_pos" : 8,
+            "name_c" : "主题",
+            "name_e" : "Subject",
+            "content" : "测试"
+        },
+        {
+            "oid" : "24",
+            "bytes" : 0,
+            "bit_pos" : 9,
+            "name_c" : "分馆标识",
+            "name_e" : "Subsidiary of an Owner Library",
+            "content" : ""
+        },
+        {
+            "oid" : "26",
+            "bytes" : -1,
+            "bit_pos" : 10,
+            "name_c" : "国际标准书/刊号",
+            "name_e" : "ISBN/ISSN",
+            "content" : ""
+        },
+        {
+            "oid" : "27",
+            "bytes" : -1,
+            "bit_pos" : 11,
+            "name_c" : "扩展保留位",
+            "name_e" : "Reserved Data",
+            "content" : ""
+        },
+        {
+            "oid" : "28",
+            "bytes" : -1,
+            "bit_pos" : 12,
+            "name_c" : "扩展保留位",
+            "name_e" : "Reserved Data",
+            "content" : ""
+        },
+        {
+            "oid" : "29",
+            "bytes" : -1,
+            "bit_pos" : 13,
+            "name_c" : "扩展保留位",
+            "name_e" : "Reserved Data",
+            "content" : ""
+        },
+        {
+            "oid" : "30",
+            "bytes" : -1,
+            "bit_pos" : 14,
+            "name_c" : "扩展保留位",
+            "name_e" : "Reserved Data",
+            "content" : ""
+        },
+        {
+            "oid" : "31",
+            "bytes" : -1,
+            "bit_pos" : 15,
+            "name_c" : "扩展保留位",
+            "name_e" : "Reserved Data",
+            "content" : ""
+        }
+    ]
+}
