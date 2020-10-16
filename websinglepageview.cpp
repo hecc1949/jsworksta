@@ -45,7 +45,7 @@ void WebPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level, cons
                               int lineNumber, const QString &sourceID)      //virtual
 {
     if (level == QWebEnginePage::InfoMessageLevel)      //console.log()输出，default关闭了
-        qDebug()<<"js info:"<<message;
+        qDebug()<<"js log:"<<message;
     else if (level ==QWebEnginePage::WarningMessageLevel)
         qDebug()<<"js warning:"<<message;
     else if (level == QWebEnginePage::ErrorMessageLevel)

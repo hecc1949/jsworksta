@@ -37,7 +37,6 @@ int URfidWrapper::checkBarcodeValid(QString barcode)
     return(res);
 }
 
-
 QString URfidWrapper::epcEncode(QString barcode, int barcodeType)
 {
     QString res = "";
@@ -50,78 +49,7 @@ QString URfidWrapper::epcEncode(QString barcode, int barcodeType)
     return(res);
 }
 
-#if 0
-QJsonObject URfidWrapper::epcDecode(QString epcHex, int formatId)
-{
-    QJsonObject jo;
-    jo["barcode"] = "";
-    jo["fmtId"] = -1;
-    QJsonArray joItems;
-    jo["usrItems"] = joItems;
 
-    QByteArray epc = QByteArray::fromHex(epcHex.toUtf8());      //必须toUtf8()
-    QList<DefineItem_t> usrItems;
-    QByteArray barcode;
-    int fmtid = srcformat.EpcDecode((uint8_t *)epc.data(), epc.size(), barcode, usrItems, formatId);
-    if (fmtid<0)
-        return(jo);
-    jo["barcode"] = QString::fromLatin1(barcode);
-    jo["fmtId"] = fmtid;
-
-    //功能定义项表
-    for(int i=0; i<usrItems.count(); i++)
-    {
-        QJsonObject uitem;
-        uitem["name"] = usrItems[i].name_e;
-        uitem["oid"] = usrItems[i].oid;
-        uitem["value"] = usrItems[i].value;
-        joItems.append(uitem);
-    }
-    jo["usrItems"] = joItems;
-    return(jo);
-}
-#endif
-
-#if 0
-bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
-{
-    Q_UNUSED(inventMode);
-
-    QString prompt = "";
-    bool res = wrProxy.openWritor(prompt);
-    wrProxy.startWritor();
-    miscMessage = prompt + QTime::currentTime().toString(" hh:mm");
-
-
-    connect(wrProxy.rfidDev, SIGNAL(cmdResponse(QString, int, int)), this, SLOT(dev_cmdResponse(QString, int, int)), Qt::QueuedConnection);
-    connect(wrProxy.rfidDev, SIGNAL(errorResponse(QString, int)), this, SLOT(dev_errMsg(QString, int)), Qt::QueuedConnection);
-    connect(wrProxy.rfidDev, SIGNAL(readMemBank(Membank_data_t, int)), this, SLOT(dev_readMemBank(Membank_data_t, int)), Qt::QueuedConnection);
-    connect(wrProxy.rfidDev, SIGNAL(tagIdentify(IdentifyEPC_t,int)), this, SLOT(dev_tagIdentify(IdentifyEPC_t,int)),Qt::QueuedConnection);
-
-    connect(&wrProxy, SIGNAL(scanTick(int,int)), this, SLOT(onReadTagTick(int,int)),Qt::QueuedConnection);
-
-    if (useLocalDb)
-    {
-        wrProxy.dbstore = &dbstore;
-    }
-    wrProxy.loadRecordsDb();        //不使用dbstore也要空WritedRec, KillRec
-    emit writedCountChanged();
-
-    wrProxy.loadJsonConfig();
-    if (res)
-    {
-        QString s1 = ((Dev_R200 *)(wrProxy.rfidDev))->getModuleHwInfo();
-        setMiscMessage(s1, 0);
-//        qDebug()<<s1;
-    }
-    else
-        setMiscMessage(prompt, 1);
-
-    return(res);
-}
-#endif
-
-//#if 0
 bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
 {
     Q_UNUSED(inventMode);
@@ -176,7 +104,6 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
 
     return(res);
 }
-//#endif
 
 bool URfidWrapper::setInventifyMode(bool inventMode)
 {
@@ -396,7 +323,6 @@ QJsonObject URfidWrapper::writeTag(int poolId, QString context, QString epcHex, 
     QJsonObject joRes;
     joRes["result"] = 0;
 
-//    qDebug()<<"write tag..."<<poolId<<epcHex;
     if (wrProxy.identifyRuning || wrProxy.writingLock)
         return(joRes);
     if (poolId<0 || poolId>= wrProxy.identifyPool.count())
@@ -416,7 +342,6 @@ QJsonObject URfidWrapper::writeTag(int poolId, QString context, QString epcHex, 
     if (epc.length()<4 || epc.length()>wrProxy.identifyPool[poolId].tagEpcSize)
         return(joRes);
 
-//    int res = wrProxy.writeAppDats(poolId, (uint8_t *)epc.constData(), epc.length(), NULL, 0);
     int res = wrProxy.writeAppDats(poolId, (uint8_t *)epc.constData(), epc.length(),
                 srcformat.usrBankDats, srcformat.usrBankDatSize);
 
@@ -469,7 +394,6 @@ QJsonObject URfidWrapper::writeTag(int poolId, QString context, QString epcHex, 
 
     }
     return(joRes);
- //   return(res);
 }
 
 QJsonObject URfidWrapper::killTag(int poolId)
@@ -482,7 +406,6 @@ QJsonObject URfidWrapper::killTag(int poolId)
     if (wrProxy.identifyPool.at(poolId).getInherents ==0)       //<GET_INHERENT_ALL ?
         return(joRes);
 
-//    qDebug()<<"kill tag for:"<<poolId;
     int res = wrProxy.killATag(poolId);
     if (res <0)
         return(joRes);
@@ -614,21 +537,17 @@ void URfidWrapper::setInventScanPeriod(int time_ms)
     }
 }
 
-/*
+#if 0
 void URfidWrapper::showSysToolbar(int autoHideTime)
 {
     ContainerWindow *mainwin = qobject_cast<ContainerWindow*>(this->parent());
 //    if (mainwin !=nullptr)
     mainwin->naviToolBar->setAutoShow(autoHideTime);
 }
-*/
+#endif
 
 void URfidWrapper::sysClose()
 {
-//    qDebug()<<"exit program.";
-//    this->deleteLater();
-//    QCoreApplication::exit(0);
-
     if (wrProxy.identifyRuning)
         wrProxy.identifyRun(false);
     if (invent.scanRuning)
@@ -637,5 +556,70 @@ void URfidWrapper::sysClose()
     ContainerWindow *mainwin = qobject_cast<ContainerWindow*>(this->parent());
     mainwin->loadEmptyView();
     mainwin->close();
+}
+
+QJsonObject URfidWrapper::execDbSql(QString queryCmd, QJsonArray param)
+{
+    QJsonObject joRes;
+    QJsonObject joErr;
+    QJsonArray joRows;
+    joRes["rows"] = joRows;
+    joErr["code"] = -1;
+    joErr["message"] = "no using database";
+    if (wrProxy.dbstore==NULL || invent.dbstore==NULL)
+    {
+        joRes["error"] = joErr;
+        return(joRes);
+    }
+    //
+    //
+    bool isSelect = queryCmd.contains("Select", Qt::CaseInsensitive);
+    int paraCnt = 0;
+    for (int i=0; i<queryCmd.length(); i++)
+    {
+        if ((queryCmd.constData())[i] == '?')
+            paraCnt++;
+    }
+    if (paraCnt != param.count())
+    {
+        joErr["message"] = "parameter error";
+        joRes["error"] = joErr;
+        return(joRes);
+    }
+    //
+    QSqlQuery sql(dbstore._db);
+    sql.prepare(queryCmd);
+    for (int i=0; i<param.count(); i++)
+    {
+        sql.bindValue(i, param.at(i).toVariant());
+    }
+    if (sql.exec())
+    {
+        joErr["code"] = 0;
+        joErr["message"] = "exec_sql success";
+        joRes["error"] = joErr;
+        if (isSelect)
+        {
+            QSqlRecord rec = sql.record();
+            int fieldNum = rec.count();
+            while(sql.next())
+            {
+                QJsonArray row;
+                for (int col=0; col<fieldNum; col++)
+                {
+                    row.append(sql.value(col).toString());
+                }
+                joRows.append(row);
+            }            
+        }
+        joRes["rows"] = joRows;
+    }
+    else
+    {
+        joErr["code"] = sql.lastError().type();
+        joErr["message"] = sql.lastError().text();
+        joRes["error"] = joErr;
+    }
+    return(joRes);
 }
 

@@ -43,6 +43,8 @@ public:
     Q_INVOKABLE bool runInvent(bool startRun, int scanMode);
 //    Q_INVOKABLE void showSysToolbar(int autoHideTime);
 
+    Q_INVOKABLE QJsonObject execDbSql(QString queryCmd, QJsonArray param);
+
     int getWritedCount()   const    {
         return(wrProxy.writeRec.dailyCount);
     }

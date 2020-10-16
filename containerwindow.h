@@ -2,7 +2,7 @@
 #define CONTAINERWINDOW_H
 
 #include <QMainWindow>
-#include "tinytitlebar.h"
+//#include "tinytitlebar.h"
 #include "navitoolbar.h"
 #include "websinglepageview.h"
 

@@ -22,6 +22,7 @@ var barcodeNewline = false, scanRuning = false, inventRuning = false;
 
 var wrEventBuf = [];
 var m_InventRecBuf = [];
+//var g_dbSelectMark = 0;        //db browse数据选择
 
 //界面初始化。等效于放在$(document).ready((function()  {    }) 中
 $(function initViews()  {
@@ -77,10 +78,9 @@ $(function initViews()  {
     //写入事件记录表格
     $("#wrEventTab").datagrid({loadFilter: pagerFilter});
     $("#wrEventTab").datagrid('getPager').css({height:"40px"});
-    $("#wrEventTab").datagrid('getPager').pagination({
+/*    $("#wrEventTab").datagrid('getPager').pagination({
         layout: ['sep','first','prev','links','next','last','sep','refresh','info']
-    });
-//    $("#wrEventTab").datagrid('loadData', $("#wrEventTab").datagrid('getRows'));    //初始化
+    }); */
 
     //工具栏按钮
     $("#btnFindTag").bind('click', runFindTag);
@@ -99,9 +99,9 @@ $(function initViews()  {
     //点验表格
     $("#inventTab").datagrid({loadFilter: pagerFilter});
     $("#inventTab").datagrid('getPager').css({height:"40px"});
-    $("#inventTab").datagrid('getPager').pagination({
+/*    $("#inventTab").datagrid('getPager').pagination({
         layout: ['sep','first','prev','links','next','last','sep','refresh','info']
-    });
+    }); */
     //扫描速度选择框
     $("#inventSpeed").combo('textbox').css({fontSize: "1.2em"});
     $("#inventSpeed").combobox({
@@ -134,6 +134,29 @@ $(function initViews()  {
         }
     });
 
+    //数据管理
+    $("#wrEventDb").datagrid({loadFilter: pagerQueryDb});
+    $("#inventDb").datagrid({loadFilter: pagerQueryDb});
+
+    $("#dbExportMarkSel").switchbutton({
+        onChange: function(checked){        //刷新显示
+            var selAct = -1;
+            if (checked)
+                selAct = 0;
+            dbViewInit(selAct, $("#wrEventDb"));
+            dbViewInit(selAct, $("#inventDb"));
+        }
+    });
+
+//    $("#wrEventDb").datagrid('getPager').pagination({onSelectPage: queryPage});
+
+
+    $("#wrEventTab, #inventTab, #wrEventDb, #inventDb").each(function()    {
+        $(this).datagrid('getPager').pagination({
+            layout: ['sep','first','prev','links','next','last','sep','refresh','info']
+        });
+    });
+
     //系统
     $("#btnClose").linkbutton({
         onClick: function() {
@@ -148,9 +171,7 @@ $(function initViews()  {
     });
 
     //页面载入，设置焦点    
-//    $("#inventPanel").panel("close");
     $("#barcodeInput").next('span').find('input').focus();
-//    console.log("Start.");
 });
 
 //webchannel全局对象加载
@@ -203,9 +224,9 @@ $(function()    {
                 $("#btnInventMode").linkbutton({"text":"精细扫描"});
             }
             $("#btnInventMode").linkbutton("enable");
-//            inventModeDetail = detailScan;
         });
         devwrapper.inventTagUpdate.connect(onInventTagUpdate);
+
     });
 });
 
@@ -234,8 +255,10 @@ function functionsMain(title, index)    {
             $(this).panel("close");
         }
     });
-    //读写器模式切换
+
+    //
     if (window.devwrapper !== null)  {
+        //读写器模式切换
         if ((index===0 && isInventMode)||(index===1 && !isInventMode))  {
             var selInvent = (index===1);
             devwrapper.setInventifyMode(selInvent, function(result)    {
@@ -251,15 +274,27 @@ function functionsMain(title, index)    {
                 }
             });
         }
+        //界面关联
         if (index===2)   {
             devwrapper.imeEnable(true);
+
+            var selAct = -1;
+            if ($("#dbExportMarkSel").switchbutton("options").checked)
+                selAct = 0;
+            dbViewInit(selAct, $("#wrEventDb"));
+            dbViewInit(selAct, $("#inventDb"));
+
         }   else    {
             devwrapper.imeEnable(false);
+//            $("#wrEventDb").datagrid('loadData', {total:0, rows:[]});
+//            $("#inventDb").datagrid('loadData', {total:0, rows:[]});
         }
     }
+
+
 }
 
-
+//---------------------- 写标签功能 ---------------------------------------------
 function clearWrTagPanel()  {
     $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
     $("#barcodeInput").textbox('setValue', "");
@@ -558,7 +593,7 @@ function updateWritedRecord(joRes, isKill)   {
                 if (row.tagserial === rec.tagserial)    {
 //                    console.log("search found:"+row.tagserial);
                     rowid = rid;
-                    throw new Error("EndInterative");
+                    throw new Error("Enderative");
                 }
             });
         }   catch(e)   {
@@ -594,7 +629,7 @@ function updateWritedRecord(joRes, isKill)   {
     }
 }
 
-//---------------------- 点验模式 ---
+//---------------------- 点验功能 ---------------------------------------------
 function runInvent()    {
     var startRun = !inventRuning;
     devwrapper.runInvent(startRun, 0, function(res) {
@@ -681,4 +716,128 @@ function onInventTagUpdate(jo)  {
     }
 }
 
+//---------------------- 数据管理功能 ---------------------------------------------
+/**
+//# local database(booktags.db)的table/fields定义：
+const tabWritedtagsFieldNames = ["id", "dailycount", "exportMark", "epcBytes",
+        "itemIdentifier", "EPC", "tagSerialNo",
+        "aversion", "usrBankWrited", "passwdWrited", "lockAction",
+        "writetime", "operatorName", "remark"];
+const tabInventsFieldNames = ["id", "invent_id", "exportMark",
+        "EPC", "itemIdentifier",
+        "exlink","grp_id","grp_id2","updtime"];
+*/
+/*
+//用sql读取数据库的一页数据，转换成datagrid显示
+function loadDbRecords(selectMark, $dg, begin, pagesize, callback)    {
+    var selTab_Invents = false;
+    var query = "Select * from ";
+    if ($dg.attr("id") === "wrEventDb" )    {
+        query += "writedtags ";
+    }   else    {
+        query += "invents ";
+        selTab_Invents = true;
+    }
+    if (selectMark >=0) {
+        query += (" where exportMark = " + selectMark);
+    }
+    query += " limit ? offset ?";
+    para = [pagesize, begin];
+    var databuf = [];
+    devwrapper.execDbSql(query, para, function(joRes)   {
+        if (joRes.error.code ===0)  {
+            var rowNum = joRes.rows.length;
+            for(var i=0; i<rowNum; i++) {
+                var arow = joRes.rows[i];
+                var rec = {};               //必须是local的
+                if (!selTab_Invents)    {
+                    rec.id = parseInt(arow[0]);
+                    rec.daily_id = parseInt(arow[1]);
+                    rec.context = arow[4];
+                    rec.epc = arow[5];
+                    rec.tagserial = arow[6];
+                    rec.wrtime = arow[11];
+                    rec.wrUsrBank = (parseInt(arow[8]) !== 0);
+                    rec.locked = (parseInt(arow[10]) !== 0);
+                    rec.remark = arow[13];
+                    rec.exportMark = arow[2];
+                }   else    {
+                    rec.id = parseInt(arow[0]);
+                    rec.invent_id = parseInt(arow[1]);
+                    rec.exportMark = parseInt(arow[2]);
+                    rec.inventGrp = parseInt(arow[6]);
+                    rec.epc = arow[3];
+                    rec.context = arow[4];
+                    if (parseInt(arow[7]) ===0)
+                        rec.formatId = "标准";
+                    else
+                        rec.formatId = "格式"+arow[7];
+                    rec.updtime = arow[8];
+                }
 
+                databuf.push(rec);
+            }
+        }   else {
+            alert("SQL exec error: "+ joRes.error.message);
+        }
+        //传递到loadData显示
+        if (callback)   {
+            callback(databuf);
+        }
+    });
+}
+
+//初始化表格显示，查询记录总数作为分页参数，并读出第一页显示
+function dbViewInit(selectMark, $dg)     {
+    var query;
+    if ($dg.attr("id") === "wrEventDb" )
+        query = "Select Count(*) from writedtags";
+    else
+        query = "Select Count(*) from invents";
+    if (selectMark >=0)    {
+        query += (" where exportMark=" + selectMark);
+    }
+    devwrapper.execDbSql(query, [], function(joRes)   {
+        var cnt = 0;
+        if (joRes.error.code ===0)  {
+            var row = joRes.rows[0];
+            cnt = parseInt(row[0]);
+        }
+        var pageSize = $dg.datagrid('options').pageSize;
+        loadDbRecords(selectMark, $dg, 0, pageSize, function(dat)    {
+            data = {
+                total: cnt,
+                rows: dat
+            }
+            $dg.datagrid('loadData', data);
+        });
+    })
+}
+
+//sql浏览database的分页实现(=> datagrid.loadFilter)
+function pagerQueryDb(data) {
+    var dg = $(this);
+    var opts = dg.datagrid('options');
+    var pager = dg.datagrid('getPager');
+    pager.pagination({
+        onSelectPage: function (pageNum, pageSize) {
+            opts.pageNumber = pageNum;
+            opts.pageSize = pageSize;
+            pager.pagination('refresh', {
+                pageNumber: pageNum,
+                pageSize: pageSize
+            });            
+            var selAct = -1;
+            if ($("#dbExportMarkSel").switchbutton("options").checked)
+                selAct = 0;
+            loadDbRecords(selAct, dg, (pageNum-1)*pageSize, pageSize, function(pagedat)    {
+                data.rows = pagedat;
+                dg.datagrid('loadData', data);
+            });
+        }
+    });
+
+    return data;
+}
+
+*/

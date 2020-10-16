@@ -83,8 +83,8 @@
                     style="width:100%; padding:0;" >
                 <a id="exportFile" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
                     style="width:100%;height:40px; margin-bottom: 5px">导出到文件</a>                
-                <a id="fileCopy2Sd" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
-                    style="width:100%;height:40px; margin-bottom: 5px">复制到SD卡/U盘</a> <br/>
+                <a id="fileCopy2Sd" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'"                   
+                    style="width:100%;height:40px; margin-bottom: 5px">复制文件</a>
                 <a id="fileUpload" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
                     style="width:100%;height:40px; margin-bottom: 5px">上传文件</a> <br/>                              
                 <a id="fileDelete" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
@@ -108,7 +108,7 @@
                 </div>
                 <!-- 找到的标签 -->
                 <table id="foundtagTab" class="easyui-datagrid" title="电子标签"  fitcolumns="true" style="height:280px; width: 100%"
-                    data-options="singleSelect:true,rownumbers:false,collapsible:false,url:'',method:'get'">
+                    data-options="singleSelect:true,rownumbers:false,striped:true,collapsible:false,url:'',method:'get'">
                     <thead>
                         <tr>
                         <th data-options="field:'itemid',width:50">ID</th>
@@ -132,7 +132,7 @@
                 </div>
                 <table id="wrEventTab" class="easyui-datagrid" title="写录事件表" fitcolumns="true"
                     style="width: 100%;height:500px" data-options="
-                        singleSelect:true,rownumbers:true, autoRowHeight:false,
+                        singleSelect:true,rownumbers:true, autoRowHeight:false,striped:true,
                         pagination:true,pageSize:10,
                         collapsible:true">
                     <thead>
@@ -165,7 +165,7 @@
                 <div>
                     <table id="inventTab" class="easyui-datagrid" title="发现标签表" fitcolumns="true"
                         style="width: 100%;height:760px"
-                        data-options="singleSelect:true,rownumbers:true,collapsible:true, autoRowHeight:false,
+                        data-options="singleSelect:true,rownumbers:true,collapsible:true, autoRowHeight:false,striped:true,
                                 pagination:true, pageSize:20">
                         <thead>
                             <tr>
@@ -189,33 +189,41 @@
                 <div id="dbTableSelect" class="easyui-tabs" >
                     <div title="标签制作记录" style="padding:0px;">
                         <table id="wrEventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:350px"
-                            data-options="singleSelect:true,rownumbers:true,collapsible:true,url:'',method:'get'">
+                            data-options="singleSelect:true,rownumbers:false,collapsible:true,striped:true,
+                                    pagination:true,pageSize:10,
+                                    url:'',method:'get'">
                             <thead>
                                 <tr>
-                                <th data-options="field:'count',width:80">计数</th>
-                                <th data-options="field:'evtype',width:60">类型</th>
-                                <th data-options="field:'wrtime',width:100">时间</th>
-                                <th data-options="field:'context',width:180">内容(条码)</th>
-                                <th data-options="field:'tagserial',width:140">标签序列号</th>
-                                <th data-options="field:'epc',width:240">标签号(EPC)</th>
+                                <th data-options="field:'id',width:80">序号</th>
+                                <th data-options="field:'daily_id',width:80">组内编号</th>
+                                <th data-options="field:'context',width:140">内容(条码)</th>
+                                <th data-options="field:'epc',width:300">标签号(EPC)</th>
+                                <th data-options="field:'tagserial',width:180">标签序列号</th>
+                                <th data-options="field:'wrtime',width:160">写录时间</th>
                                 <th data-options="field:'wrUsrBank',width:60, formatter:formatCheckedColumn">UsrBank</th>
                                 <th data-options="field:'locked',width:50,formatter:formatCheckedColumn">加密</th>
+                                <th data-options="field:'remark',width:100">说明</th>
+                                <th data-options="field:'exportMark',width:80">导出标记</th>
+
                                 </tr>
                             </thead>
                         </table>        
                     </div>
                     <div title="点验记录" style="padding:0px">
                         <table id="inventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:350px"
-                            data-options="singleSelect:true,rownumbers:true,collapsible:true,url:'',method:'get'">
+                            data-options="singleSelect:true,rownumbers:true,collapsible:true,striped:true,
+                                pagination:true,pageSize:10,
+                                url:'',method:'get'">
                         <thead>
                             <tr>
                             <th data-options="field:'id',width:60">序号</th>
+                            <th data-options="field:'inventGrp',width:60">分组</th>
+                            <th data-options="field:'invent_id',width:80">组内编号</th>
                             <th data-options="field:'epc',width:240">标签号(EPC)</th>
                             <th data-options="field:'context',width:180">馆藏编码(条码)</th>
-                            <th data-options="field:'formatId',width:60, formatter:formatCheckedColumn">格式</th>
-                            <th data-options="field:'securityBit',width:50,formatter:formatCheckedColumn">安全位</th>
-                            <th data-options="field:'title',width:180">书名</th>
-                            <th data-options="field:'inventGrp',width:60">分组</th>
+                            <th data-options="field:'formatId',width:160">格式</th>
+                            <th data-options="field:'updtime',width:160">记录时间</th>
+                            <th data-options="field:'exportMark',width:80">导出标记</th>
                             </tr>
                         </thead>
                         </table>    
@@ -223,11 +231,12 @@
                 </div>
                 <!-- 辅助信息 -->
                 <div style="margin-top: 2px"> 
-                    <input id="dbExportSel" class="easyui-switchbutton" checked style="width:150px;" 
+                    <input id="dbExportMarkSel" class="easyui-switchbutton" checked style="width:150px;"
                         data-options="onText:'未导出数据',offText:'全部数据'" > 
                 </div>
+                <h3> 请注意导出当天的作业数据，使计数值清零 </h3>
                 <div style="margin-top: 8px; margin-bottom: 10px">
-                    <input id="exportFilepath" class="easyui-textbox" label="导出文件名:" data-options="labelPosition:'left', 
+                    <input id="exportFilepath" class="easyui-textbox" label="导出文件名:" data-options="labelPosition:'left',
                         labelAlign:'right'" style="width:45%;"> <br/>
                     <input id="upLoadUrl" class="easyui-textbox" label="上传路径:" data-options="labelPosition:'left', 
                         labelAlign:'right'" style="width:45%;"> <br/>

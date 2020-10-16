@@ -71,3 +71,128 @@ function pagerFilter(data) {
     data.rows = (data.originalRows.slice(start, end));
     return data;
 }
+
+//-------数据库管理相关 ---------------------------------------------
+/**
+//# local database(booktags.db)的table/fields定义：
+const tabWritedtagsFieldNames = ["id", "dailycount", "exportMark", "epcBytes",
+        "itemIdentifier", "EPC", "tagSerialNo",
+        "aversion", "usrBankWrited", "passwdWrited", "lockAction",
+        "writetime", "operatorName", "remark"];
+const tabInventsFieldNames = ["id", "invent_id", "exportMark",
+        "EPC", "itemIdentifier",
+        "exlink","grp_id","grp_id2","updtime"];
+*/
+
+//用sql读取数据库的一页数据，转换成datagrid显示
+function loadDbRecords(selectMark, $dg, begin, pagesize, callback)    {
+    var selTab_Invents = false;
+    var query = "Select * from ";
+    if ($dg.attr("id") === "wrEventDb" )    {
+        query += "writedtags ";
+    }   else    {
+        query += "invents ";
+        selTab_Invents = true;
+    }
+    if (selectMark >=0) {
+        query += (" where exportMark = " + selectMark);
+    }
+    query += " limit ? offset ?";
+    para = [pagesize, begin];
+    var databuf = [];
+    devwrapper.execDbSql(query, para, function(joRes)   {
+        if (joRes.error.code ===0)  {
+            var rowNum = joRes.rows.length;
+            for(var i=0; i<rowNum; i++) {
+                var arow = joRes.rows[i];
+                var rec = {};               //必须是local的
+                if (!selTab_Invents)    {
+                    rec.id = parseInt(arow[0]);
+                    rec.daily_id = parseInt(arow[1]);
+                    rec.context = arow[4];
+                    rec.epc = arow[5];
+                    rec.tagserial = arow[6];
+                    rec.wrtime = arow[11];
+                    rec.wrUsrBank = (parseInt(arow[8]) !== 0);
+                    rec.locked = (parseInt(arow[10]) !== 0);
+                    rec.remark = arow[13];
+                    rec.exportMark = arow[2];
+                }   else    {
+                    rec.id = parseInt(arow[0]);
+                    rec.invent_id = parseInt(arow[1]);
+                    rec.exportMark = parseInt(arow[2]);
+                    rec.inventGrp = parseInt(arow[6]);
+                    rec.epc = arow[3];
+                    rec.context = arow[4];
+                    if (parseInt(arow[7]) ===0)
+                        rec.formatId = "标准";
+                    else
+                        rec.formatId = "格式"+arow[7];
+                    rec.updtime = arow[8];
+                }
+
+                databuf.push(rec);
+            }
+        }   else {
+            alert("SQL exec error: "+ joRes.error.message);
+        }
+        //传递到loadData显示
+        if (callback)   {
+            callback(databuf);
+        }
+    });
+}
+
+//初始化表格显示，查询记录总数作为分页参数，并读出第一页显示
+function dbViewInit(selectMark, $dg)     {
+    var query;
+    if ($dg.attr("id") === "wrEventDb" )
+        query = "Select Count(*) from writedtags";
+    else
+        query = "Select Count(*) from invents";
+    if (selectMark >=0)    {
+        query += (" where exportMark=" + selectMark);
+    }
+    devwrapper.execDbSql(query, [], function(joRes)   {
+        var cnt = 0;
+        if (joRes.error.code ===0)  {
+            var row = joRes.rows[0];
+            cnt = parseInt(row[0]);
+        }
+        var pageSize = $dg.datagrid('options').pageSize;
+        loadDbRecords(selectMark, $dg, 0, pageSize, function(dat)    {
+            data = {
+                total: cnt,
+                rows: dat
+            }
+            $dg.datagrid('loadData', data);
+        });
+    })
+}
+
+//sql浏览database的分页实现(=> datagrid.loadFilter)
+function pagerQueryDb(data) {
+    var dg = $(this);
+    var opts = dg.datagrid('options');
+    var pager = dg.datagrid('getPager');
+    pager.pagination({
+        onSelectPage: function (pageNum, pageSize) {
+            opts.pageNumber = pageNum;
+            opts.pageSize = pageSize;
+            pager.pagination('refresh', {
+                pageNumber: pageNum,
+                pageSize: pageSize
+            });
+            var selAct = -1;
+            if ($("#dbExportMarkSel").switchbutton("options").checked)
+                selAct = 0;
+            loadDbRecords(selAct, dg, (pageNum-1)*pageSize, pageSize, function(pagedat)    {
+                data.rows = pagedat;
+                dg.datagrid('loadData', data);
+            });
+        }
+    });
+
+    return data;
+}
+
