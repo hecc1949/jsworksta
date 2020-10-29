@@ -18,11 +18,12 @@ window.devwrapper = null;       //这个先于qwebchannel初始化，界面初�
 
 var isInventMode = false;
 var barcodeNewline = false, scanRuning = false, inventRuning = false;
-//var inventModeDetail = false;
 
 var wrEventBuf = [];
 var m_InventRecBuf = [];
-//var g_dbSelectMark = 0;        //db browse数据选择
+
+var locFileManage = {fileNames:"", extMediaPath:"", uploadUrl:""    };
+//var extMediaPath = "";
 
 //界面初始化。等效于放在$(document).ready((function()  {    }) 中
 $(function initViews()  {
@@ -78,9 +79,6 @@ $(function initViews()  {
     //写入事件记录表格
     $("#wrEventTab").datagrid({loadFilter: pagerFilter});
     $("#wrEventTab").datagrid('getPager').css({height:"40px"});
-/*    $("#wrEventTab").datagrid('getPager').pagination({
-        layout: ['sep','first','prev','links','next','last','sep','refresh','info']
-    }); */
 
     //工具栏按钮
     $("#btnFindTag").bind('click', runFindTag);
@@ -95,13 +93,10 @@ $(function initViews()  {
     //计数显示
     $("#inventTagCount, #inventFmtTagCount, #inventRunCount").each(function()   {
         $(this).textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"});
-    })
+    });
     //点验表格
     $("#inventTab").datagrid({loadFilter: pagerFilter});
     $("#inventTab").datagrid('getPager').css({height:"40px"});
-/*    $("#inventTab").datagrid('getPager').pagination({
-        layout: ['sep','first','prev','links','next','last','sep','refresh','info']
-    }); */
     //扫描速度选择框
     $("#inventSpeed").combo('textbox').css({fontSize: "1.2em"});
     $("#inventSpeed").combobox({
@@ -134,9 +129,16 @@ $(function initViews()  {
         }
     });
 
-    //数据管理
+    // --- 数据管理 ---
     $("#wrEventDb").datagrid({loadFilter: pagerQueryDb});
     $("#inventDb").datagrid({loadFilter: pagerQueryDb});
+    $('#dbTableSelect').tabs({
+        onSelect: function(title, index) {
+            var selAct = $("#dbExportMarkSel").switchbutton("options").checked;
+            var filename = fileNameFromTime(index, !selAct);
+            $("#exportTofile").textbox("setValue", filename);
+        }
+    });
 
     $("#dbExportMarkSel").switchbutton({
         onChange: function(checked){        //刷新显示
@@ -145,19 +147,115 @@ $(function initViews()  {
                 selAct = 0;
             dbViewInit(selAct, $("#wrEventDb"));
             dbViewInit(selAct, $("#inventDb"));
+            //default export file name
+            var tabSel = $('#dbTableSelect').tabs('getTabIndex', $('#dbTableSelect').tabs('getSelected'));
+            var filename = fileNameFromTime(tabSel, (selAct===-1));
+            $("#exportTofile").textbox("setValue", filename);
+        }
+    });
+    //数据导出
+    $("#exportTofile").textbox({
+        onClickButton: function() {
+            if (devwrapper !== null)    {
+                var tabsel = 0;
+                if ($('#dbTableSelect').tabs('getTabIndex', $('#dbTableSelect').tabs('getSelected')) ===0)  {
+                    tabsel = 1;
+                    if (!($("#dbExportMarkSel").switchbutton("options").checked))   {
+                        tabsel = 2;
+                    }
+                }
+                var filename = $("#exportTofile").textbox("getValue");
+                devwrapper.exportDbRecords(tabsel, filename, function(jo)   {
+                    if (jo.error === 0) {
+                        $.messager.alert('导出数据成功', jo.message,'info');
+                    }   else if (jo.error ===-1)    {
+                        $.messager.alert('导出数据出错','文件名或选择条件错误.','error');
+                        $("#exportTofile").textbox('textbox').focus();
+                    }   else {
+                        $.messager.alert('导出数据出错', jo.message,'error');
+                    }
+                });
+            }
+        }
+    });
+    $("#exportTofile").textbox('textbox').css("fontSize", "1.5em");     //要在event配置后面
+    //文件操作
+    $("#fileSelect").textbox({
+        onClickButton: function() {
+            if (devwrapper !== null)    {
+                devwrapper.doSysFileOpenDialog("csv", "csv files(*.csv),text files(*.txt)", function(filenames)    {
+                    if ($("#multiSelfile").checkbox('options').checked)   {
+                        var fnames = $("#fileSelect").textbox('getValue');
+                        if (fnames.length>0)  {
+                            if (locFileManage.fileNames.indexOf(filenames) >=0) {
+                                $.messager.alert('无效', '重复选择文件','warning');
+                                return;
+                            }
+                            fnames += ", ";
+                            locFileManage.fileNames += ",";
+                        }
+                        locFileManage.fileNames += filenames;
+                        fnames += filenames.substr(filenames.lastIndexOf('/')+1);
+                        $("#fileSelect").textbox('setValue', fnames);
+                    }   else    {
+                        $("#fileSelect").textbox('setValue', filenames);
+                        locFileManage.fileNames = filenames;
+                    }
+                });
+            }
+        }
+    });
+    $("#fileSelect").textbox('textbox').css("fontSize", "1.2em");
+
+    $("#fileCopy2Sd").linkbutton({
+        onClick: function() {
+            if (locFileManage.fileNames.length>0 && locFileManage.extMediaPath.length>0)    {
+                devwrapper.doSysFileCommand("copy", locFileManage.fileNames, locFileManage.extMediaPath,
+                    function(res)   {
+                        if (res.error ===0)     {
+                            $.messager.alert('文件', res.message, 'info');
+                        }   else    {
+                            $.messager.alert('文件处理错误', res.message, 'error');
+                        }
+                });
+            }
+        }
+    });
+    $("#fileDelete").linkbutton({
+        onClick: function() {
+            if (locFileManage.fileNames.length>0)    {
+                devwrapper.doSysFileCommand("delete", locFileManage.fileNames, '',
+                    function(res)   {
+                        if (res.error ===0)     {
+                            $.messager.alert('文件', res.message, 'info');
+                            $("#fileSelect").textbox('setValue', '');
+                            locFileManage.fileNames = '';
+                        }   else    {
+                            $.messager.alert('文件处理错误', res.message, 'error');
+                        }
+                });
+            }
         }
     });
 
-//    $("#wrEventDb").datagrid('getPager').pagination({onSelectPage: queryPage});
-
-
-    $("#wrEventTab, #inventTab, #wrEventDb, #inventDb").each(function()    {
-        $(this).datagrid('getPager').pagination({
-            layout: ['sep','first','prev','links','next','last','sep','refresh','info']
-        });
-    });
 
     //系统
+    $("#configApply").linkbutton({
+        onClick: function() {
+            var rows = $("#configSettings").propertygrid('getChanges');
+            devwrapper.setSysConfigs(rows, function(updCnt)    {
+                if (updCnt>0)   {
+                    $("#configApply").linkbutton("disable");
+                    setTimeout(function() {
+                        devwrapper.getSysConfigs(function(res) {
+                            $('#configSettings').propertygrid('loadData', res);
+                        });
+                        $("#configApply").linkbutton("enable");
+                    }, 3000);
+                }
+            });
+        }
+    });
     $("#btnClose").linkbutton({
         onClick: function() {
             $.messager.confirm({title:'退出系统', msg: '确定要退出程序？',
@@ -170,6 +268,12 @@ $(function initViews()  {
         }
     });
 
+    //全部datagrid的分页布置
+    $("#wrEventTab, #inventTab, #wrEventDb, #inventDb").each(function()    {
+        $(this).datagrid('getPager').pagination({
+            layout: ['sep','first','prev','links','next','last','sep','refresh','info']
+        });
+    });
     //页面载入，设置焦点    
     $("#barcodeInput").next('span').find('input').focus();
 });
@@ -198,7 +302,6 @@ $(function()    {
                 $("#statusBar").text(devwrapper.promptMessage);
             }
         });
-
 /*#        devwrapper.showSysToolbar(1000);
         $("#banner").hover(function()   {
             devwrapper.showSysToolbar(5000);
@@ -237,7 +340,7 @@ function functionsMain(title, index)    {
         mnuContextPanel = ["wrtagPanel", "inventPanel", "dbManagePanel", "configPanel"];
     }
     if (!mnuToolPanel)  {
-        mnuToolPanel = ["wrtagTools", "inventTools", "dbManageTools", ""];
+        mnuToolPanel = ["wrtagTools", "inventTools","",""];
     }
     if (index<0 || index>3)
         return;
@@ -248,7 +351,7 @@ function functionsMain(title, index)    {
             $(this).panel("close");
         }
     });
-    $("#wrtagTools, #inventTools, #dbManageTools").each(function()    {
+    $("#wrtagTools, #inventTools").each(function()    {
         if ($(this).attr('id') === mnuToolPanel[index] ) {
             $(this).panel("open");
         }   else    {
@@ -277,21 +380,42 @@ function functionsMain(title, index)    {
         //界面关联
         if (index===2)   {
             devwrapper.imeEnable(true);
-
+            //数据库datagrid显示
             var selAct = -1;
             if ($("#dbExportMarkSel").switchbutton("options").checked)
                 selAct = 0;
             dbViewInit(selAct, $("#wrEventDb"));
             dbViewInit(selAct, $("#inventDb"));
 
+            //自动给出导出文件名
+            var tabSel = $('#dbTableSelect').tabs('getTabIndex', $('#dbTableSelect').tabs('getSelected'));
+            var filename = fileNameFromTime(tabSel, (selAct===-1));
+            $("#exportTofile").textbox("setValue", filename);
+            //检查可用的sdcard/udisk
+            devwrapper.getExtMediaPath(function(fpath)  {
+                locFileManage.extMediaPath = fpath;
+                if (fpath.length ===0)  {
+                    $("#fileCopy2Sd").linkbutton("disable");
+                }   else    {
+                    $("#fileCopy2Sd").linkbutton("enable");
+                    if (fpath.indexOf("udisk")>=0)  {
+                        $("#fileCopy2Sd").linkbutton({"text":"复制到U盘"});
+                    }   else    {
+                        $("#fileCopy2Sd").linkbutton({"text":"复制到SD卡"});
+                    }
+                }
+            });
+        }   else if (index===3)  {
+            devwrapper.imeEnable(true);
+//            $('#configSettings').propertygrid('loadData', cfgSettings);
+            //读取配置
+            devwrapper.getSysConfigs(function(res) {
+                $('#configSettings').propertygrid('loadData', res);
+            });
         }   else    {
             devwrapper.imeEnable(false);
-//            $("#wrEventDb").datagrid('loadData', {total:0, rows:[]});
-//            $("#inventDb").datagrid('loadData', {total:0, rows:[]});
         }
     }
-
-
 }
 
 //---------------------- 写标签功能 ---------------------------------------------
@@ -586,12 +710,10 @@ function updateWritedRecord(joRes, isKill)   {
     }
     else {
         rec.evtype = "改写";
-//        console.log("search repeat:"+rec.tagserial);
         //列表中查找
         try {
             wrEventBuf.forEach(function(row, rid)   {
                 if (row.tagserial === rec.tagserial)    {
-//                    console.log("search found:"+row.tagserial);
                     rowid = rid;
                     throw new Error("Enderative");
                 }
@@ -628,7 +750,6 @@ function updateWritedRecord(joRes, isKill)   {
         $("#wrEventTab").datagrid('selectRow', (rowid % pagesize));     //光标。selectRow的行id是base-0的        
     }
 }
-
 //---------------------- 点验功能 ---------------------------------------------
 function runInvent()    {
     var startRun = !inventRuning;
@@ -716,128 +837,3 @@ function onInventTagUpdate(jo)  {
     }
 }
 
-//---------------------- 数据管理功能 ---------------------------------------------
-/**
-//# local database(booktags.db)的table/fields定义：
-const tabWritedtagsFieldNames = ["id", "dailycount", "exportMark", "epcBytes",
-        "itemIdentifier", "EPC", "tagSerialNo",
-        "aversion", "usrBankWrited", "passwdWrited", "lockAction",
-        "writetime", "operatorName", "remark"];
-const tabInventsFieldNames = ["id", "invent_id", "exportMark",
-        "EPC", "itemIdentifier",
-        "exlink","grp_id","grp_id2","updtime"];
-*/
-/*
-//用sql读取数据库的一页数据，转换成datagrid显示
-function loadDbRecords(selectMark, $dg, begin, pagesize, callback)    {
-    var selTab_Invents = false;
-    var query = "Select * from ";
-    if ($dg.attr("id") === "wrEventDb" )    {
-        query += "writedtags ";
-    }   else    {
-        query += "invents ";
-        selTab_Invents = true;
-    }
-    if (selectMark >=0) {
-        query += (" where exportMark = " + selectMark);
-    }
-    query += " limit ? offset ?";
-    para = [pagesize, begin];
-    var databuf = [];
-    devwrapper.execDbSql(query, para, function(joRes)   {
-        if (joRes.error.code ===0)  {
-            var rowNum = joRes.rows.length;
-            for(var i=0; i<rowNum; i++) {
-                var arow = joRes.rows[i];
-                var rec = {};               //必须是local的
-                if (!selTab_Invents)    {
-                    rec.id = parseInt(arow[0]);
-                    rec.daily_id = parseInt(arow[1]);
-                    rec.context = arow[4];
-                    rec.epc = arow[5];
-                    rec.tagserial = arow[6];
-                    rec.wrtime = arow[11];
-                    rec.wrUsrBank = (parseInt(arow[8]) !== 0);
-                    rec.locked = (parseInt(arow[10]) !== 0);
-                    rec.remark = arow[13];
-                    rec.exportMark = arow[2];
-                }   else    {
-                    rec.id = parseInt(arow[0]);
-                    rec.invent_id = parseInt(arow[1]);
-                    rec.exportMark = parseInt(arow[2]);
-                    rec.inventGrp = parseInt(arow[6]);
-                    rec.epc = arow[3];
-                    rec.context = arow[4];
-                    if (parseInt(arow[7]) ===0)
-                        rec.formatId = "标准";
-                    else
-                        rec.formatId = "格式"+arow[7];
-                    rec.updtime = arow[8];
-                }
-
-                databuf.push(rec);
-            }
-        }   else {
-            alert("SQL exec error: "+ joRes.error.message);
-        }
-        //传递到loadData显示
-        if (callback)   {
-            callback(databuf);
-        }
-    });
-}
-
-//初始化表格显示，查询记录总数作为分页参数，并读出第一页显示
-function dbViewInit(selectMark, $dg)     {
-    var query;
-    if ($dg.attr("id") === "wrEventDb" )
-        query = "Select Count(*) from writedtags";
-    else
-        query = "Select Count(*) from invents";
-    if (selectMark >=0)    {
-        query += (" where exportMark=" + selectMark);
-    }
-    devwrapper.execDbSql(query, [], function(joRes)   {
-        var cnt = 0;
-        if (joRes.error.code ===0)  {
-            var row = joRes.rows[0];
-            cnt = parseInt(row[0]);
-        }
-        var pageSize = $dg.datagrid('options').pageSize;
-        loadDbRecords(selectMark, $dg, 0, pageSize, function(dat)    {
-            data = {
-                total: cnt,
-                rows: dat
-            }
-            $dg.datagrid('loadData', data);
-        });
-    })
-}
-
-//sql浏览database的分页实现(=> datagrid.loadFilter)
-function pagerQueryDb(data) {
-    var dg = $(this);
-    var opts = dg.datagrid('options');
-    var pager = dg.datagrid('getPager');
-    pager.pagination({
-        onSelectPage: function (pageNum, pageSize) {
-            opts.pageNumber = pageNum;
-            opts.pageSize = pageSize;
-            pager.pagination('refresh', {
-                pageNumber: pageNum,
-                pageSize: pageSize
-            });            
-            var selAct = -1;
-            if ($("#dbExportMarkSel").switchbutton("options").checked)
-                selAct = 0;
-            loadDbRecords(selAct, dg, (pageNum-1)*pageSize, pageSize, function(pagedat)    {
-                data.rows = pagedat;
-                dg.datagrid('loadData', data);
-            });
-        }
-    });
-
-    return data;
-}
-
-*/

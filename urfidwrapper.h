@@ -41,9 +41,16 @@ public:
 
     Q_INVOKABLE bool setInventifyMode(bool invent);
     Q_INVOKABLE bool runInvent(bool startRun, int scanMode);
-//    Q_INVOKABLE void showSysToolbar(int autoHideTime);
+//#    Q_INVOKABLE void showSysToolbar(int autoHideTime);
 
     Q_INVOKABLE QJsonObject execDbSql(QString queryCmd, QJsonArray param);
+    Q_INVOKABLE QJsonObject exportDbRecords(int tabSelInvent, QString filename);
+    Q_INVOKABLE QString getExtMediaPath();
+    Q_INVOKABLE QString doSysFileOpenDialog(QString initDir, QString filter);
+    Q_INVOKABLE QJsonObject doSysFileCommand(QString cmd, QString srcFiles, QString dstPath);
+
+    Q_INVOKABLE QJsonArray getSysConfigs();
+    Q_INVOKABLE int setSysConfigs(QJsonArray param);
 
     int getWritedCount()   const    {
         return(wrProxy.writeRec.dailyCount);
@@ -82,7 +89,7 @@ signals:
 public slots:
 //    bool findTagsForWrite(bool start);
     void toggleInventMode();
-    void inventResetLet(bool clearAll);
+    void inventResetLet(bool discard);
     void setInventScanPeriod(int time_ms);
 
     void imeEnable(bool en) {       //receive from js

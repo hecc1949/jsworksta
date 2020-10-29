@@ -56,24 +56,6 @@ body {
     font-size:1.5em;    /* xx */
 }
 
-/*
-#inventTagCount .textbox-text,
-#inventFmtTagCount .textbox-text,
-#inventRunCount .textbox-text   {
-.easyui-textbox .textbot-text   {
-    font-size: 1.8em;
-    font-weight:bold;
-    color:blue
-}
-*/
-
-/*
-#fundtagTabDiv, #foundtagTab    {
-    width: 100%;
-    height:280px; 
-}
-*/
-
 .panel-title,
 .datagrid-header .datagrid-cell span,
 .datagrid-cell,
@@ -106,13 +88,6 @@ body {
     font-size: 1.2em;
     font-weight: bold;
 }
-
-/*
-.combo .combo-text, .combobox-stick  {
-    font-size: 1.2em;
-    font-weight: bold;
-}
-*/
 
 #writedCount    {
     background-color: rgb(196, 196, 174);

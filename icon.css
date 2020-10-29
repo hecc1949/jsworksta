@@ -94,3 +94,39 @@
 .icon-large-chart{
 	background:url('icons/large_chart.png') no-repeat center center;
 }
+
+/*  --- my icons    -- */
+.icon-close{
+        background:url('icons/fclose.ico') no-repeat center center;
+}
+
+
+.icon-write{
+        background:url('icons/write.png') no-repeat center center;
+}
+
+.icon-copycli{
+        background:url('icons/copycli.png') no-repeat center center;
+}
+
+.icon-opendoc{
+        background:url('icons/opendoc.png') no-repeat center center;
+}
+
+.icon-dbsettings{
+        background:url('icons/dbsettings.png') no-repeat center center;
+}
+
+.icon-home1{
+        background:url('icons/home1.png') no-repeat center center;
+}
+
+.icon-newdoc{
+        background:url('icons/newdoc.png') no-repeat center center;
+}
+
+.icon-fforward{
+        background:url('icons/tip.png') no-repeat center center;
+/*        background:url('icons/fforward.png') no-repeat center center; */
+}
+

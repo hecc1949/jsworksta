@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QTimer>
 #include <QtWebEngineWidgets>
+//#include <QLocale>
 
 ContainerWindow::ContainerWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -24,6 +25,22 @@ ContainerWindow::ContainerWindow(QWidget *parent) :
 
 //    QNetworkProxyFactory::setUseSystemConfiguration(false);
     setupFace();
+
+    //网络检测
+    m_netInfo.netStatus = 0;
+    netChecker = new NetworkChecker(NULL);          //手工delete
+    connect(netChecker, SIGNAL(sigCheckNetDone(NetworkInfo_t)), this, SLOT(onNetworkStatusUpdate(NetworkInfo_t)));
+    netChecker->moveToThread(&netmgrThread);
+    netmgrThread.start();
+
+    QTimer *startAppTimer = new QTimer(this);
+    startAppTimer->setSingleShot(true);
+    connect(startAppTimer, &QTimer::timeout, this,[=]() {
+        netChecker->checkNetworkStatus();
+    });
+//    qDebug()<<"main thread:"<<QThread::currentThread();
+    startAppTimer->start(2000);
+
 }
 
 ContainerWindow::~ContainerWindow()
@@ -62,17 +79,33 @@ void ContainerWindow::setupFace()
     naviToolBar->hide();
 }
 
-/*
-void ContainerWindow::mousePressEvent(QMouseEvent *event)
+void ContainerWindow::safeClose()
 {
-    return QWidget::mousePressEvent(event);
+    QElapsedTimer rtimer;
+    rtimer.start();
+
+    while(netmgrThread.isRunning())
+    {
+        netmgrThread.quit();
+        netmgrThread.wait();
+    }
+    delete netChecker;
+
+    m_webview->load(QUrl(""));
+    repaint();
+    while(rtimer.elapsed()<100)
+    {
+        QCoreApplication::processEvents();
+    }
+
+//    qDebug()<<"application terminate.";
+    this->close();
 }
-*/
+
 
 void ContainerWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event);
-//    m_webview->hide();
     setStyleSheet("background-color: #008080");     //实际不起作用，只是黑屏退出。加后延时会有效，但部分前景还在，很难看
     repaint();
 #if 0
@@ -83,6 +116,11 @@ void ContainerWindow::closeEvent(QCloseEvent *event)
 }
 
 /*
+void ContainerWindow::mousePressEvent(QMouseEvent *event)
+{
+    return QWidget::mousePressEvent(event);
+}
+
 void ContainerWindow::timerEvent(QTimerEvent *)
 {
 }
@@ -127,8 +165,7 @@ void ContainerWindow::onNaviAction(int indexMode)
     }
 }
 
-void ContainerWindow::loadEmptyView()
+void ContainerWindow::onNetworkStatusUpdate(NetworkInfo_t netInfo)
 {
-    m_webview->load(QUrl(""));
-    repaint();
+    m_netInfo = netInfo;
 }

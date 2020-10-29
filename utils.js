@@ -29,6 +29,39 @@ $(function () {
     },1000);
 });
 
+//
+function fileNameFromTime(index, selAll)   {
+    var prefix = 'WR';
+    if (index ===1) {
+        prefix = 'IN';
+    }   else if (selAll)    {
+        prefix += 'A';
+    }
+    var dt = new Date();
+    var year = dt.getFullYear();
+    var month = dt.getMonth();
+    if (month <10)  {
+        month = '0'+month;
+    }
+    var days = dt.getDate();
+    if (days <10)   {
+        days = '0' + days;
+    }
+    var hours = dt.getHours();
+    var minutes = dt.getMinutes();
+    var seconds = dt.getSeconds();
+    if(hours<10)    {
+        hours = '0'+hours;
+    }
+    if(minutes<10)  {
+        minutes = '0'+minutes;
+    }
+    if(seconds<10)  {
+        seconds = '0'+seconds;
+    }
+    return(prefix + year + month + days + hours+minutes+seconds + ".csv");
+}
+
 
 //通用子函数：在datagrid中构建checkedbox表示的列项
 function formatCheckedColumn(val, rowDat, rowIndex) {
@@ -195,4 +228,34 @@ function pagerQueryDb(data) {
 
     return data;
 }
+
+
+var cfgSettings = [
+    {"id":0, "name": "主机名", "group":"名称", "value": "FLT", "editor":"" },
+    {"id":1, "name": "操作员", "group":"名称", "value": "A01", "editor":"text" },
+    {"id":2, "name": "本机IP", "group":"网络", "value": "192.168.1.11", "editor":"" },
+    {"id":3, "name": "联网方式", "group":"网络", "value": '0-有线/固定IP',
+        "editor": {"type": 'combobox', "options":{"panelHeight":"auto","editable":false,
+                        'data': [{'value':'0-有线/固定IP', 'text':'0-有线/固定IP'},
+                        {'value':'1-有线/动态IP', 'text': '1-有线/动态IP'},{'value':'2-wifi', 'text': '2-wifi'}
+                    ]}
+        }},
+    {"id":4, "name": "wifi热点", "group":"网络", "value": "",
+         "editor": {"type": 'combobox', "options":{"panelHeight":"auto","editable":false,
+                   'data': []}
+        }},
+    {"id":5, "name": "wifi密码", "group":"网络", "value": "", "editor":"text" },
+    {"id":6, "name": "日期时间", "group":"功能", "value": "",
+        "editor": {"type": 'combobox', "options":{"panelHeight":"auto","editable":false,
+                  'data': [{'value':'Now', 'text':'2020-12-11 09:20:11'},
+                    {'value':'NTP', 'text':'NTP-网络时间'} ]}
+        }},
+    {"id":7, "name": "下载升级", "group":"功能", "value": "", "editor":"text" }
+];
+
+/*
+$(function()    {
+    $('#configSettings').propertygrid('loadData', cfgSettings);
+})
+*/
 

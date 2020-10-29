@@ -35,12 +35,12 @@
                 <div title="点验" data-options="iconCls:'icon-sum',selected:false" >
                     <p>扫描标签盘点图书</p>
                 </div>
-                <div title="数据管理" >
+                <div title="数据管理" data-options="iconCls:'icon-dbsettings',selected:false">
                     <p>导出作业数据</p>
                 </div>
-                <div title="系统">
+                <div title="系统" data-options="iconCls:'icon-home1'">
                     <p>设置参数</p><br/>
-                    <a id="btnClose" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',size:'large'"
+                    <a id="btnClose" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-close',size:'large'"
                         style="width:100%; margin-bottom: 30px;">退出</a>
                 </div>
             </div>
@@ -55,22 +55,23 @@
                     style="width:100%; padding:0px;" >
                 <a id="btnFindTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search',size:'large'"
                     style="width:100%; margin-bottom: 30px;">查找标签</a>
-                <a id="btnWriteTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok',size:'large'"
+                <a id="btnWriteTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-write',size:'large'"
                     style="width:100%; margin-bottom: 30px">写标签</a>
                 <a id="btnKillTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',size:'large'"
                     style="width:100%;">标签灭活</a>
             </div>
             <div id="inventTools" class="easyui-panel" data-options="closed:true,fit:true" title="点验工具"
                     style="width:100%; padding:0;" >
-                <a id="btnInventNewGrp" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok',size:'large'"
+                <a id="btnInventNewGrp" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-newdoc',size:'large'"
                     style="width:100%; margin-bottom: 10px">新建分组</a>
-                <a id="btnInventMode" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok',toggle:true,size:'large'"
+                <a id="btnInventMode" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-fforward',toggle:true,size:'large'"
                     style="width:100%; margin-bottom: 30px">精细扫描</a>
                 <a id="btnInventRun" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search',size:'large'"
                     style="width:100%; margin-bottom: 40px">点验</a>
                 <div style="width:100%; margin-bottom: 10px">
                     <select id="inventSpeed" class="easyui-combobox" label="速度:" data-options=
-                        "labelPosition:'left',labelAlign:'right', labelWidth:'60px', panelHeight:'140px'" style="width:100%;">
+                        "labelPosition:'left',labelAlign:'right', labelWidth:'60px', panelHeight:'auto', editable:false"
+                        style="width:100%;">
                     <option value="150">连续</option>
                     <option value="200">200ms</option>
                     <option value="350">350ms</option>
@@ -78,17 +79,6 @@
                     </select>
                 </div>
 
-            </div>
-            <div id="dbManageTools" class="easyui-panel" data-options="closed:true, fit:true" title="数据管理工具"
-                    style="width:100%; padding:0;" >
-                <a id="exportFile" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
-                    style="width:100%;height:40px; margin-bottom: 5px">导出到文件</a>                
-                <a id="fileCopy2Sd" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'"                   
-                    style="width:100%;height:40px; margin-bottom: 5px">复制文件</a>
-                <a id="fileUpload" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
-                    style="width:100%;height:40px; margin-bottom: 5px">上传文件</a> <br/>                              
-                <a id="fileDelete" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-filesave'" 
-                    style="width:100%;height:40px;">删除文件</a>                
             </div>
         </div>
         <!-- 底栏， 状态提示-->
@@ -188,7 +178,7 @@
                 <!-- 两个表格，tab分页 -->
                 <div id="dbTableSelect" class="easyui-tabs" >
                     <div title="标签制作记录" style="padding:0px;">
-                        <table id="wrEventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:350px"
+                        <table id="wrEventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:400px"
                             data-options="singleSelect:true,rownumbers:false,collapsible:true,striped:true,
                                     pagination:true,pageSize:10,
                                     url:'',method:'get'">
@@ -210,8 +200,8 @@
                         </table>        
                     </div>
                     <div title="点验记录" style="padding:0px">
-                        <table id="inventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:350px"
-                            data-options="singleSelect:true,rownumbers:true,collapsible:true,striped:true,
+                        <table id="inventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:400px"
+                            data-options="singleSelect:true,rownumbers:false,collapsible:true,striped:true,
                                 pagination:true,pageSize:10,
                                 url:'',method:'get'">
                         <thead>
@@ -234,19 +224,47 @@
                     <input id="dbExportMarkSel" class="easyui-switchbutton" checked style="width:150px;"
                         data-options="onText:'未导出数据',offText:'全部数据'" > 
                 </div>
-                <h3> 请注意导出当天的作业数据，使计数值清零 </h3>
                 <div style="margin-top: 8px; margin-bottom: 10px">
-                    <input id="exportFilepath" class="easyui-textbox" label="导出文件名:" data-options="labelPosition:'left',
-                        labelAlign:'right'" style="width:45%;"> <br/>
-                    <input id="upLoadUrl" class="easyui-textbox" label="上传路径:" data-options="labelPosition:'left', 
-                        labelAlign:'right'" style="width:45%;"> <br/>
-                    <input id="recEmail" class="easyui-textbox" label="接收email:" data-options="labelPosition:'left', 
-                        labelAlign:'right'" style="width:45%;">
+                    <div class="easyui-panel" title="导出数据" style="width:100%;padding:10px 10px;">
+                        <span> 每天应该导出当天的作业数据，使计数值清零 </span> <br/>
+                        <input id="exportTofile" class="easyui-textbox" label="文件名:" data-options="labelPosition:'left',
+                            labelAlign:'right', buttonText:'导出到文件',buttonIcon:'icon-copycli'" style="width:70%; height:36px;">
+                    </div>
+                    <div class="easyui-panel" title="文件管理" style="width:100%; padding:10px 10px;">
+<!--                        <input id="fileSelect" class="easyui-filebox" style="width:70%; height:36px" data-options="
+                            prompt:'选择已导出的csv文件', buttonText:'选择文件...',buttonAlign:'left',
+                            multiple:true, accept: 'csv文件/csv'"> <br/>
+-->
+                        <input id="fileSelect" class="easyui-textbox" label="" data-options="labelPosition:'top',editable:false,
+                                labelAlign:'right', buttonText:'选择文件...',buttonAlign:'left',buttonIcon:'icon-opendoc'"
+                                style="width:85%; height:36px;">
+                        <input id="multiSelfile" class="easyui-checkbox" label="多选" data-options=
+                                "labelPosition:'after', checked:true">
+                        <br />
+                        <a id="fileCopy2Sd" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-save'"
+                                style="width:15%;height:36px; margin-top: 10px; margin-bottom: 10px;">复制文件</a>
+                        <a id="fileDelete" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-clear'"
+                                style="width:15%;height:36px;">删除文件</a><br/>
+                        <input id="upLoadUrl" class="easyui-textbox" label="" data-options="labelPosition:'top',editable:false,
+                                labelAlign:'right', buttonText:'上传到..(URL)',buttonAlign:'left',buttonIcon:'icon-redo'"
+                                style="width:50%; height:36px;">
+                    </div>
+
                 </div>
             </div>  
 
             <!--4. 系统配置界面 -->       
             <div id="configPanel" class="easyui-panel" data-options="closed:true" title="系统配置" style="width:100%">
+                <table id="configSettings" class="easyui-propertygrid" style="width:400px" data-options="
+                    showGroup: true, scrollbarSize: 0,
+                    columns: [[
+                            { field: 'name', title: '项目', width: 100, resizable: false },
+                            { field: 'value', title: '属性', width: 280, resizable: true }
+                           ]]">
+                </table>
+                <a id="configApply" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-ok'"
+                        style="width:20%;height:36px; margin-top:20px;margin-left:20px">确认</a>
+
             </div>    
         </div>
     </body>

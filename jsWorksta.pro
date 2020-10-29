@@ -5,7 +5,7 @@
 #-------------------------------------------------
 
 QT       += core gui webenginewidgets webchannel    \
-        serialport sql
+        serialport sql network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -57,20 +57,22 @@ SOURCES += \
         containerwindow.cpp \
     navitoolbar.cpp \
     websinglepageview.cpp \
-    urfidwrapper.cpp
+    urfidwrapper.cpp \
+    networkchecker.cpp
 
 HEADERS += \
         containerwindow.h \
     navitoolbar.h \
     websinglepageview.h \
     urfidwrapper.h  \
-    srcdatformat.h \
-    writebooktags.h    \
-    dev_r200.h \
-    rfidreadermod.hpp  \
-    gpiodev.h \
-    dbstore.h  \
-    inventproxy.h
+    ../urfidLib/inc/srcdatformat.h \
+    ../urfidLib/inc/writebooktags.h    \
+    ../urfidLib/inc/dev_r200.h \
+    ../urfidLib/inc/rfidreadermod.hpp  \
+    ../urfidLib/inc/gpiodev.h \
+    ../urfidLib/inc/dbstore.h  \
+    ../urfidLib/inc/inventproxy.h \
+    networkchecker.h
 
 FORMS += \
         containerwindow.ui \
