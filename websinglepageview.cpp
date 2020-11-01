@@ -290,16 +290,6 @@ bool WebSinglePageView::eventFilter(QObject *obj, QEvent *_event)      //virtual
         if (evt->queries() == Qt::ImEnabled)
         {
             evt->setValue(Qt::ImEnabled, g_ImeEnable);    //在此根据js发来的信号，设置为true/false可以开/关IME
-
-//            QPoint pos = ((QWidget *)(obj))->mapToGlobal(QPoint(0,0));
-//            qDebug()<<"focus widget:("<<pos.x()<<", "<<pos.y()<<"), ("<<((QWidget *)(obj))->width()<<", "<<((QWidget *)(obj))->height();
-
-//            qDebug()<<"focus widget:("<<((QWidget *)(obj))->x()<<", "<<((QWidget *)(obj))->y()
-//                    <<((QWidget *)(obj))->width()<<","<<((QWidget *)(obj))->height();
-
-//            qDebug()<<"query Obj:"<<obj->metaObject()->className();
-//            evt->setValue(Qt::ImEnabled, false);    //在此根据js发来的信号，设置为true/false应该可以开/关IME
-//            qDebug()<<"query Obj:"<<obj->dynamicPropertyNames();
             return(true);       //必须的
         }
     }

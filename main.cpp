@@ -90,21 +90,6 @@ void logInit()
     qInstallMessageHandler(outputMessage);
 }
 
-/*
-void logMessageFilter(QtMsgType type, const QMessageLogContext &context, const QString &msg)
-{
-    Q_UNUSED(type);
-    mutex.lock();
-
-    //在调试窗口输出
-    if ((type != QtWarningMsg)||(QString(context.category) !="js" ))
-    {
-        std::cout << msg.toStdString().data()<<std::endl;
-    }
-
-    mutex.unlock();
-}
-*/
 
 int main(int argc, char *argv[])
 {
@@ -113,7 +98,6 @@ int main(int argc, char *argv[])
 //    qputenv("QTWEBENGINE_REMOTE_DEBUGGING", "9223");
 
     QApplication a(argc, argv);
-//    qInstallMessageHandler(logMessageFilter);
     QStringList arguments = QCoreApplication::arguments();
     if (arguments.indexOf("-log")>0)
     {

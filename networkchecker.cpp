@@ -25,11 +25,9 @@ NetworkChecker::NetworkChecker(QObject *parent) : QObject(parent)
 {
     //QMetatype注册
     qRegisterMetaType<NetworkInfo_t>("NetworkInfo_t");
-//    m_netName = "";         //初始，未连接过任何网络
-    netInfo.netName = "";
+    netInfo.netName = "";       //初始，未连接过任何网络
     netInfo.netStatus = 0;
 
-//    connect(this, SIGNAL(sigCheckEth0()), this, SLOT(doCheckEth0()));
     connect(this, SIGNAL(checkNetworkStatus()), this, SLOT(doCheckEth0()));
     connect(this, SIGNAL(sigCheckDhcp()), this, SLOT(doCheckDhcp()));
     connect(this, SIGNAL(sigCheckWifiStatus()), this, SLOT(doCheckWifiStatus()));
@@ -44,7 +42,6 @@ NetworkChecker::NetworkChecker(QObject *parent) : QObject(parent)
 
 NetworkChecker::~NetworkChecker()
 {
-//    qDebug()<<"network checker stop";
     scanTimer->stop();
     if (netInfo.netStatus ==2 ||scanCount <1024)
     {        
@@ -52,45 +49,11 @@ NetworkChecker::~NetworkChecker()
     }
 }
 
-/*
-//主调用入口
-void NetworkChecker::checkNetworkStatus()
-{
-#ifdef ARM
-    emit sigCheckEth0();        //启动检查有线网
-#endif
-}
-*/
-
-/*
-void NetworkChecker::linkToWifi(QString ssid, QString psk)
-{
-#ifdef ARM
-    emit sigAddWifiAp(ssid, psk);
-#else
-    Q_UNUSED(ssid);
-    Q_UNUSED(psk);
-#endif
-}
-*/
-
-/*
-void NetworkChecker::stopWifi()
-{
-#ifdef ARM
-    emit sigStopWifi();
-#endif
-}
-*/
-
-
 /**
  * @brief NetworkChecker::doCheckEth0 检查有线网连接
  */
 void NetworkChecker::doCheckEth0()
 {
-//    qDebug()<<"check eth0 link."<<QThread::currentThread();
-//    qDebug()<<"check eth0 link.";
 #ifdef ARM
     char cmdbuf[MAX_PATH];
     char cmdresult[MAX_PATH];   //设置一个合适的长度，以存储每一行输出
@@ -132,8 +95,7 @@ void NetworkChecker::doCheckEth0()
         netInfo.netName = "eth0";
         if (netInfo.netStatus ==0)
         {
-//            emit sigCheckInternet();    //初次连接，检查外网
-            emit sigCheckDhcp();
+            emit sigCheckDhcp();        //初次连接，检查外网
         }
         else
         {
@@ -155,7 +117,6 @@ void NetworkChecker::doCheckDhcp()
     if (netInfo.netName.length()==0)
         return;
     netInfo.Ip = "";
-//    qDebug()<<"check Dhcp.";
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd == -1)
@@ -217,7 +178,6 @@ void NetworkChecker::doCheckDhcp()
 void NetworkChecker::scanTimerTick()
 {
     scanCount++;
-//    if (scanCount>=20)
     if (scanCount>=10)
     {
         scanTimer->stop();
@@ -274,7 +234,6 @@ void NetworkChecker::doCheckWifiStatus()
         //可能是和/etc/network/interfaces配置的udchp要协调。
         system("udhcpc -iwlan0 -p /var/run/udhcpc.pid -x hostname:$HOSTNAME -q -n");
         //
-//        qDebug()<<"wlan0 linked";
         scanTimer->stop();
         netInfo.netName = "wlan0";
         if (!netInfo.ssidList.contains(apName))
@@ -288,13 +247,11 @@ void NetworkChecker::doCheckWifiStatus()
         if (scanCount <1024)
         {
             scanCount = 1024;       //停止扫描
-//            emit sigCheckInternet();
             emit sigCheckDhcp();
         }
     }
     else
     {
-//        if (scanCount>=19)
         if (scanCount>=9)
         {
             //扫描次数到，没有连接上，放弃，进入离线状态
@@ -305,7 +262,6 @@ void NetworkChecker::doCheckWifiStatus()
             emit sigCheckNetDone(netInfo);
             scanTimer->stop();
         }
-//        else if (scanCount==6)
         else if (scanCount==3)
         {
             //重新找出所有热点，尝试连接
@@ -332,7 +288,6 @@ void NetworkChecker::doCheckWifiStatus()
  * @brief NetworkChecker::stopWifiLink 断开wifi连接。退出时有必要执行，否则如果已经连接上，下次上电时
  *  重新dhcpc申请IP会失败，因为路由器还保持着
  */
-//void NetworkChecker::stopWifiCard()
 void NetworkChecker::stopWifiLink()
 {    
     system("kill -SIGUSR2 `cat /var/run/udhcpc.pid`");      //释放udhcpc申请的IP
@@ -343,7 +298,6 @@ void NetworkChecker::stopWifiLink()
 //#    system("killall -q wpa_supplicant");
 
     netInfo.netStatus = 0;
-//    qDebug()<<"wifi dislinked..";
 }
 
 /**
@@ -381,7 +335,6 @@ int NetworkChecker::refreshWifi()
                 netInfo.ssidList.push_back(QString::fromLatin1(ssid));
                 getSsid = true;
             }
-//            qDebug()<<"Wifi Scan result:"<<QString::fromLatin1(ssid);
         }
         pclose(pp);
         if (getSsid)
@@ -464,7 +417,6 @@ void NetworkChecker::doAddWifiAP(QString ssid, QString psk)
         {
             netid = tmp_netid;
         }
-//        qDebug()<<"list get:"<<tmp_netid<<QString(t_ssid);
     }
     pclose(pp);
 
@@ -480,7 +432,6 @@ void NetworkChecker::doAddWifiAP(QString ssid, QString psk)
         {
             sscanf(cmdresult, "%d\n", &netid);
         }
-//        qDebug()<<"add network id:"<<netid;
         pclose(pp);
     }
     if (netid<0)
@@ -504,12 +455,17 @@ void NetworkChecker::doAddWifiAP(QString ssid, QString psk)
     reqSaveConfig = true;
     netInfo.ssidList.clear();
     emit sigCheckWifiStatus();
+#else
+    Q_UNUSED(ssid);
+    Q_UNUSED(psk);
 #endif
 }
 
+/**
+ * @brief NetworkChecker::updateRTC 网络时钟校准。借用线程
+ */
 void NetworkChecker::updateRTC()
 {
-//    qDebug()<<"get NTP rtc-time"<<QThread::currentThread();
 #ifdef ARM
     QString cmd = "ntpdate 0.pool.ntp.org";
     system(cmd.toLatin1());
@@ -518,19 +474,3 @@ void NetworkChecker::updateRTC()
 #endif
 }
 
-/*
-void NetworkChecker::updateRTC()
-{
-    connect(this, &NetworkChecker::sigNtpDate, [this](){
-        qDebug()<<"get NTP rtc-time"<<QThread::currentThread();     //匿名函数是在call它的线程（即main线程)中执行的!
-#ifdef ARM
-        QString cmd = "ntpdate 0.pool.ntp.org";
-        system(cmd.toLatin1());
-        cmd = "hwclock -w";
-        system(cmd.toLatin1());
-#endif
-    });
-
-    emit sigNtpDate();
-}
-*/

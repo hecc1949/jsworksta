@@ -229,7 +229,7 @@ function pagerQueryDb(data) {
     return data;
 }
 
-
+/*
 var cfgSettings = [
     {"id":0, "name": "主机名", "group":"名称", "value": "FLT", "editor":"" },
     {"id":1, "name": "操作员", "group":"名称", "value": "A01", "editor":"text" },
@@ -253,7 +253,7 @@ var cfgSettings = [
     {"id":7, "name": "下载升级", "group":"功能", "value": "", "editor":"text" }
 ];
 
-/*
+
 $(function()    {
     $('#configSettings').propertygrid('loadData', cfgSettings);
 })

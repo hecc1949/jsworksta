@@ -36,7 +36,6 @@ private:
 //    int _timerId;
     WebSinglePageView *m_webview;
     void setupFace();
-//    void loadEmptyView();
 private slots:
     void onNaviEnabledChanged(QWebEnginePage::WebAction act, bool enabled);
     void onWebProgress(int progress);

@@ -23,9 +23,6 @@ public:
     explicit NetworkChecker(QObject *parent = nullptr);
     ~NetworkChecker();
 
-//    void checkNetworkStatus();
-//    void updateRTC();
-//    void linkToWifi(QString ssid, QString psk);
 private:
     QTimer *scanTimer;
     int scanCount;
@@ -38,11 +35,9 @@ private:
     int refreshWifi();
 signals:
     //private
-//    void sigCheckEth0();
     void sigCheckDhcp();
     void sigCheckWifiStatus();
     //public
-
     void checkNetworkStatus();
     void addWifiAp(QString ssid, QString psk);
     void runNtpDate();

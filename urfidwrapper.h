@@ -45,10 +45,10 @@ public:
 
     Q_INVOKABLE QJsonObject execDbSql(QString queryCmd, QJsonArray param);
     Q_INVOKABLE QJsonObject exportDbRecords(int tabSelInvent, QString filename);
+
     Q_INVOKABLE QString getExtMediaPath();
     Q_INVOKABLE QString doSysFileOpenDialog(QString initDir, QString filter);
     Q_INVOKABLE QJsonObject doSysFileCommand(QString cmd, QString srcFiles, QString dstPath);
-
     Q_INVOKABLE QJsonArray getSysConfigs();
     Q_INVOKABLE int setSysConfigs(QJsonArray param);
 
@@ -87,7 +87,6 @@ signals:
 
     void setImeEnble(bool enable);      //up to WebEngineView
 public slots:
-//    bool findTagsForWrite(bool start);
     void toggleInventMode();
     void inventResetLet(bool discard);
     void setInventScanPeriod(int time_ms);
@@ -116,7 +115,6 @@ private slots:
     void dev_errMsg(QString info, int errCode);
     void dev_readMemBank(Membank_data_t bankdat, int info);
 
-//    void dev_tagIdentify(IdentifyEPC_t tagEpc, int infoSerial);
     void onReadTagPoolUpdate(IdentifyEPC_t tagEpc, int infoSerial);
     void onReadTagTick(int count, int updId);
     //invent功能

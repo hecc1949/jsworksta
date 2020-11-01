@@ -89,5 +89,6 @@ DISTFILES += \
     icon.css \
     bookUItems.json \
     EpcDefItems.json \
-    banksConfig.json
+    banksConfig.json \
+    基于HTML5的嵌入式UHF-RFID应用.md
 

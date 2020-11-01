@@ -22,7 +22,6 @@ ContainerWindow::ContainerWindow(QWidget *parent) :
     setWindowFlags(Qt::FramelessWindowHint);
     setFocusPolicy(Qt::ClickFocus);
     setWindowIcon(QPixmap(":/res/list_bullets_48px.png"));
-
 //    QNetworkProxyFactory::setUseSystemConfiguration(false);
     setupFace();
 
@@ -38,7 +37,6 @@ ContainerWindow::ContainerWindow(QWidget *parent) :
     connect(startAppTimer, &QTimer::timeout, this,[=]() {
         netChecker->checkNetworkStatus();
     });
-//    qDebug()<<"main thread:"<<QThread::currentThread();
     startAppTimer->start(2000);
 
 }
@@ -98,7 +96,6 @@ void ContainerWindow::safeClose()
         QCoreApplication::processEvents();
     }
 
-//    qDebug()<<"application terminate.";
     this->close();
 }
 

@@ -22,6 +22,58 @@ URfidWrapper::~URfidWrapper()
     invent.rfidDev = NULL;      //欺骗一下invent类，避免重复delete rfidDev
 }
 
+
+void URfidWrapper::setMiscMessage(QString msg, int level)
+{
+    miscMessage = msg;
+
+    QMainWindow *mainwin = qobject_cast<QMainWindow*>(this->parent());
+    if (mainwin !=nullptr && mainwin->statusBar()!=nullptr && !mainwin->statusBar()->isHidden())
+    {
+        mainwin->statusBar()->showMessage(msg, 5000);
+    }
+    emit promptMessageUpdate(level);
+
+}
+
+void URfidWrapper::dev_cmdResponse(QString info, int cmd, int status)      //slot
+{
+    QString s1 = wrProxy.rfidDev->packDumpInfo(0, info, cmd, status);
+//    setMiscMessage(s1, 0);
+    if (s1 == info)
+    {
+        setMiscMessage(s1, 0);
+//        qDebug()<<info.toLatin1();
+    }
+}
+
+void URfidWrapper::dev_errMsg(QString info, int errCode)       //slot
+{
+    QString s1 = wrProxy.rfidDev->packDumpInfo(1, info, errCode, 0);
+//    setMiscMessage(s1, 1);
+    if (s1 ==info)
+    {
+        setMiscMessage(s1, 1);
+//        qDebug()<<info;
+    }
+}
+
+void URfidWrapper::dev_readMemBank(Membank_data_t bankdat, int info)   //slot
+{
+    Q_UNUSED(info);
+#if 0
+    QString s1;
+    s1 = "read EPC:" + QByteArray((const char *)bankdat.EPC, bankdat.EpcSize).toHex();   //+":\n";
+    s1 = s1 + QString(" Bank:%1,Len:%2,Begin:%3-").arg(bankdat.bankId).arg(bankdat.len).arg(bankdat.hot_offset);
+    s1 = s1 + QByteArray((const char *)(&bankdat.dats[bankdat.hot_offset]), bankdat.len).toHex();   // + "\n";
+    qDebug()<<s1;
+#endif
+    if (wrProxy.writingLock && wrProxy.reqVerity_PoolId>=0)
+    {
+        wrProxy.doVerity(bankdat);
+    }
+}
+
 int URfidWrapper::checkBarcodeValid(QString barcode)
 {
     if (barcode != barcode.simplified())
@@ -117,12 +169,10 @@ bool URfidWrapper::setInventifyMode(bool inventMode)
         return(true);
     if (rfidDev == NULL)
     {
-//        qDebug()<<"fault, no rfidDev";
         return(false);
     }
     if (wrProxy.identifyRuning || wrProxy.writingLock || invent.scanRuning)
     {
-//        qDebug()<<"fault, rfidDev busy";
         return(false);
     }
 
@@ -149,7 +199,7 @@ bool URfidWrapper::setInventifyMode(bool inventMode)
 }
 
 
-bool URfidWrapper::findTagsForWrite(bool start)       //slot ?
+bool URfidWrapper::findTagsForWrite(bool start)
 {
     if ((start == wrProxy.identifyRuning) || wrProxy.writingLock)
         return(false);
@@ -171,51 +221,6 @@ bool URfidWrapper::findTagsForWrite(bool start)       //slot ?
 }
 
 
-void URfidWrapper::setMiscMessage(QString msg, int level)
-{
-    miscMessage = msg;
-
-    QMainWindow *mainwin = qobject_cast<QMainWindow*>(this->parent());
-    if (mainwin !=nullptr && mainwin->statusBar()!=nullptr && !mainwin->statusBar()->isHidden())
-    {
-        mainwin->statusBar()->showMessage(msg, 5000);
-    }
-    emit promptMessageUpdate(level);
-
-}
-
-void URfidWrapper::dev_cmdResponse(QString info, int cmd, int status)      //slot
-{
-    QString s1 = wrProxy.rfidDev->packDumpInfo(0, info, cmd, status);
-    setMiscMessage(s1, 0);
-    if (s1 == info)         //普通信息包装后只在状态栏显示，要debug输出，则在packDumpInfo()中不作包装
-        qDebug()<<info.toLatin1();
-}
-
-void URfidWrapper::dev_errMsg(QString info, int errCode)       //slot
-{
-    QString s1 = wrProxy.rfidDev->packDumpInfo(1, info, errCode, 0);
-    setMiscMessage(s1, 1);
-    if (s1 ==info)
-        qDebug()<<info;
-}
-
-void URfidWrapper::dev_readMemBank(Membank_data_t bankdat, int info)   //slot
-{
-    Q_UNUSED(info);
-#if 0
-    QString s1;
-    s1 = "read EPC:" + QByteArray((const char *)bankdat.EPC, bankdat.EpcSize).toHex();   //+":\n";
-    s1 = s1 + QString(" Bank:%1,Len:%2,Begin:%3-").arg(bankdat.bankId).arg(bankdat.len).arg(bankdat.hot_offset);
-    s1 = s1 + QByteArray((const char *)(&bankdat.dats[bankdat.hot_offset]), bankdat.len).toHex();   // + "\n";
-    qDebug()<<s1;
-#endif
-    if (wrProxy.writingLock && wrProxy.reqVerity_PoolId>=0)
-    {
-        wrProxy.doVerity(bankdat);
-    }
-    //emit();
-}
 
 ///
 /// \brief RfidWrite::dev_tagIdentify 识别到标签后的处理
@@ -260,8 +265,6 @@ void URfidWrapper::onReadTagPoolUpdate(IdentifyEPC_t tagEpc, int infoSerial)   /
                 jo["barcode"] = s1;
             }
             jo["fmtId"] = fmtid;
-
-//            qDebug()<<"--readed:"<<wrProxy.identifyPool[hotid].getInherents;
         }
         emit findTagUpdate(jo);
     }
@@ -427,7 +430,6 @@ QJsonObject URfidWrapper::killTag(int poolId)
         wrProxy.killAuxRec.EPC.setRawData((const char *)wrProxy.identifyPool.at(poolId).EPC, epcLen);
         wrProxy.killAuxRec.tagSerialNo.setRawData((const char *)wrProxy.identifyPool.at(poolId).tidSerialNo, SERIALNO_BYTES);
         wrProxy.killAuxRec.itemIdentifier.setRawData((const char *)wrProxy.identifyPool.at(poolId).itemIdentifier,barstrLen);
-//        wrProxy.killAuxRec.remark = "标签灭活";
         wrProxy.killAuxRec.remark = "Kill Tag";
         if (wrProxy.dbstore->saveTagRecord(wrProxy.killAuxRec, false))
         {
@@ -482,7 +484,6 @@ void URfidWrapper::inventResetLet(bool discard)
 
 void URfidWrapper::onInventChangeMode(int mode)
 {
-//    qDebug()<<"multHitMode:"<<mode;
     emit(inventScanModeUpdate((mode!=0)));
 }
 
@@ -563,14 +564,6 @@ void URfidWrapper::sysClose()
 
     ContainerWindow *mainwin = qobject_cast<ContainerWindow*>(this->parent());
     mainwin->safeClose();
-/*    mainwin->loadEmptyView();
-    if (mainwin->m_netStatus ==2)
-    {
-        mainwin->netChecker->stopWifiLink();
-
-    }
-    mainwin->close();
-*/
 }
 
 
@@ -587,7 +580,6 @@ QJsonObject URfidWrapper::execDbSql(QString queryCmd, QJsonArray param)
         joRes["error"] = joErr;
         return(joRes);
     }
-    //
     //
     bool isSelect = queryCmd.contains("Select", Qt::CaseInsensitive);
     int paraCnt = 0;
@@ -701,6 +693,7 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
     else
     {
         invent.inventClear(false);
+        _inventScanTick = 0;
         emit(inventScanChanged());
     }
     //
@@ -712,7 +705,7 @@ QString URfidWrapper::getExtMediaPath()
     QSettings* ini = new QSettings("./config.ini",QSettings::IniFormat);
     QString tfcardPath = ini->value("/Operator/TFCardPath").toString();
     if (tfcardPath.length()==0)
-        tfcardPath = "/media/hcsd";       //如果是空值，Dir()类会在qDebug()输出message, 没必要
+        tfcardPath = "/media/hcsd";
     QString udiskPath = ini->value("/Operator/UDiskPath").toString();
     if (udiskPath.length()==0)
         udiskPath = "/media/udisk";
@@ -911,7 +904,6 @@ QJsonArray URfidWrapper::getSysConfigs()
 
 int URfidWrapper::setSysConfigs(QJsonArray param)
 {
-//    qDebug()<<"call- setSysConfigs";
     if (param.count() <1)
         return(0);
     int updCnt = 0;
@@ -924,7 +916,6 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
     {
         QJsonObject jRow;
         jRow = param.at(i).toObject();
-//        qDebug()<<"row:"<<jRow["name"]<<"="<<jRow["value"];
         QString idname = jRow["name"].toString();
         if (idname == "操作员")
             reqOperator = jRow["value"].toString();
@@ -958,7 +949,6 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
     }
     if (reqSsid.length()>0 && reqPsk.length()>0)
     {
-//        emit (mainwin->netChecker->sigAddWifiAp(reqSsid, reqPsk));
         mainwin->netChecker->addWifiAp(reqSsid, reqPsk);
         updCnt +=2;
     }

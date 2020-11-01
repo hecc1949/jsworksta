@@ -23,7 +23,6 @@ var wrEventBuf = [];
 var m_InventRecBuf = [];
 
 var locFileManage = {fileNames:"", extMediaPath:"", uploadUrl:""    };
-//var extMediaPath = "";
 
 //界面初始化。等效于放在$(document).ready((function()  {    }) 中
 $(function initViews()  {
@@ -157,7 +156,7 @@ $(function initViews()  {
     $("#exportTofile").textbox({
         onClickButton: function() {
             if (devwrapper !== null)    {
-                var tabsel = 0;
+                var tabsel = 0;     //0-invent未导出， 1-wrtag未导出， 2-wrtag全部
                 if ($('#dbTableSelect').tabs('getTabIndex', $('#dbTableSelect').tabs('getSelected')) ===0)  {
                     tabsel = 1;
                     if (!($("#dbExportMarkSel").switchbutton("options").checked))   {
@@ -168,6 +167,10 @@ $(function initViews()  {
                 devwrapper.exportDbRecords(tabsel, filename, function(jo)   {
                     if (jo.error === 0) {
                         $.messager.alert('导出数据成功', jo.message,'info');
+                        if (tabsel ===0)
+                            clearInventPanel();
+                        else
+                            clearWrTagPanel();
                     }   else if (jo.error ===-1)    {
                         $.messager.alert('导出数据出错','文件名或选择条件错误.','error');
                         $("#exportTofile").textbox('textbox').focus();
@@ -282,13 +285,15 @@ $(function initViews()  {
 $(function()    {
     if (qt === undefined || qt.webChannelTransport === undefined)    {
         return;
-    }   
+    }
     window.channel = new QWebChannel(qt.webChannelTransport, function(channel) {
         window.devwrapper = channel.objects.urfidWrapper;
-        devwrapper.openURfidWritor(0, true, function(res) {
+//        devwrapper.openURfidWritor(0, true, function(res) {
+        devwrapper.openURfidWritor(1, true, function(res) {
             if (!res)   {
                 $("#barcodeInput").textbox('disable');
                 $("#btnFindTag").linkbutton("disable");
+
             }
         });
         devwrapper.writedCountChanged.connect(function()    {
@@ -337,10 +342,10 @@ var mnuContextPanel, mnuToolPanel;
 //应用页切换
 function functionsMain(title, index)    {
     if (!mnuContextPanel)   {
-        mnuContextPanel = ["wrtagPanel", "inventPanel", "dbManagePanel", "configPanel"];
+        mnuContextPanel = ["inventPanel", "wrtagPanel", "dbManagePanel", "configPanel"];
     }
     if (!mnuToolPanel)  {
-        mnuToolPanel = ["wrtagTools", "inventTools","",""];
+        mnuToolPanel = ["inventTools","wrtagTools", "",""];
     }
     if (index<0 || index>3)
         return;
@@ -361,9 +366,16 @@ function functionsMain(title, index)    {
 
     //
     if (window.devwrapper !== null)  {
+        //停止动作
+        if (index !==0 && inventRuning)  {
+            runInvent();    //stop
+        }
+        if (index !==1 && scanRuning)    {
+            runFindTag();   //stop
+        }
         //读写器模式切换
-        if ((index===0 && isInventMode)||(index===1 && !isInventMode))  {
-            var selInvent = (index===1);
+        if ((index===1 && isInventMode)||(index===0 && !isInventMode))  {
+            var selInvent = (index===0);
             devwrapper.setInventifyMode(selInvent, function(result)    {
                 if (!result)    {
                     $.messager.alert('设备故障','读写卡模块模式切换失败!','error');
@@ -407,7 +419,6 @@ function functionsMain(title, index)    {
             });
         }   else if (index===3)  {
             devwrapper.imeEnable(true);
-//            $('#configSettings').propertygrid('loadData', cfgSettings);
             //读取配置
             devwrapper.getSysConfigs(function(res) {
                 $('#configSettings').propertygrid('loadData', res);
@@ -421,13 +432,24 @@ function functionsMain(title, index)    {
 //---------------------- 写标签功能 ---------------------------------------------
 function clearWrTagPanel()  {
     $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
+    wrEventBuf.length = 0;
+    $("#wrEventTab").datagrid('loadData', {total:0, rows:[]});     //
+    $("#wrEventTab").datagrid('getPager').pagination('select',1);
+
     $("#barcodeInput").textbox('setValue', "");
     $("#usingTag").textbox('setValue', '');
     $("#btnWriteTag").linkbutton('disable');
     $("#btnKillTag").linkbutton('disable');
     $("#barcodeInput").next('span').find('input').focus();
     hotWriteObj.barcode = "";
-    hotWriteObj.poolId = -1;
+    hotWriteObj.poolId = -1;    
+}
+
+function clearInventPanel() {
+    m_InventRecBuf.splice(0, m_InventRecBuf.length);
+    $("#inventTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
+    $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
+    $("#inventRunCount").textbox('setValue', "");
 }
 
 //扫描枪输入
@@ -752,6 +774,8 @@ function updateWritedRecord(joRes, isKill)   {
 }
 //---------------------- 点验功能 ---------------------------------------------
 function runInvent()    {
+    if (devwrapper === null)
+        return;
     var startRun = !inventRuning;
     devwrapper.runInvent(startRun, 0, function(res) {
         if (res)    {
