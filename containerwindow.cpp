@@ -89,6 +89,26 @@ void ContainerWindow::safeClose()
     }
     delete netChecker;
 
+#ifdef ARM
+    QSettings *ini = new QSettings("./config.ini",QSettings::IniFormat);
+    QString tfcardPath = ini->value("/Operator/TFCardPath").toString();
+    if (QDir("/").exists(tfcardPath))
+    {
+        //卸载TF卡
+        system("sync");
+        system((QString("umount -l %1").arg(tfcardPath)).toLatin1().data());
+//        system((QString("rm -rf %1").arg(tfcardPath)).toLatin1().data());
+    }
+    QString udiskPath = ini->value("/Operator/UDiskPath").toString();
+    if (QDir("/").exists(udiskPath))
+    {
+        //卸载U盘
+        system("sync");
+        system((QString("umount -f %1").arg(udiskPath)).toLatin1().data()); //
+//        system((QString("rm -rf %1").arg(udiskPath)).toLatin1().data());
+    }
+#endif
+
     m_webview->load(QUrl(""));
     repaint();
     while(rtimer.elapsed()<100)

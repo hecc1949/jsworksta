@@ -25,6 +25,7 @@ class URfidWrapper : public QObject
     Q_PROPERTY(int inventTagNumber READ getInventTagNumber NOTIFY inventScanChanged)
     Q_PROPERTY(int inventFmtTagNumber READ getInventFmtTagNumber NOTIFY inventScanChanged)
 
+//    Q_PROPERTY(int inventScanPeriod READ getInventScanPeriod)
 public:
     explicit URfidWrapper(QObject *parent = nullptr);
     ~URfidWrapper();
@@ -52,6 +53,9 @@ public:
     Q_INVOKABLE QJsonArray getSysConfigs();
     Q_INVOKABLE int setSysConfigs(QJsonArray param);
 
+    Q_INVOKABLE QByteArray loadJsonTextFile(QString path);
+    Q_INVOKABLE bool saveJsonTextFile(QByteArray joStr, QString path);
+
     int getWritedCount()   const    {
         return(wrProxy.writeRec.dailyCount);
     }
@@ -72,6 +76,9 @@ public:
         return(invent.m_baseFormatTagCount+invent.m_unExpFormatTagCount);
     }
 
+    Q_INVOKABLE int getInventScanPeriod()   {
+        return(invent.scanIntfTime);
+    }
 
     QString miscMessage;
 signals:
@@ -89,6 +96,7 @@ signals:
 public slots:
     void toggleInventMode();
     void inventResetLet(bool discard);
+    void inventSetGroupId(int grpId);
     void setInventScanPeriod(int time_ms);
 
     void imeEnable(bool en) {       //receive from js
@@ -107,6 +115,8 @@ private:
 
     bool _inventMode = false;
     int _inventScanTick = 0;
+
+    QString _xupdatePrompt = "";
 
     void setMiscMessage(QString msg, int level);
 

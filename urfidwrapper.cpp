@@ -5,6 +5,7 @@
 #include "containerwindow.h"
 #include <QFileDialog>
 #include <QHostInfo>
+#include <QTreeView>
 
 URfidWrapper::URfidWrapper(QObject *parent) : QObject(parent),
     wrProxy(this), invent(this)
@@ -113,14 +114,24 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
     res = wrProxy.openWritor(prompt);
     rfidDev = wrProxy.rfidDev;
     invent.rfidDev = rfidDev;
+    if (useLocalDb)
+    {
+        wrProxy.dbstore = &dbstore;
+        invent.dbstore = &dbstore;
+    }
     if (!inventMode)
     {
         wrProxy.startWritor();
+        _inventMode = false;
     }
     else
     {
-        invent.initInterrogator();
+        invent.initInterrogator();      //这里要用到dbstore了
+        if (invent.m_unExportCount >0)
+            emit(inventScanChanged());
+        _inventMode = true;
     }
+
     if (rfidDev != NULL)
     {
         connect(rfidDev, SIGNAL(cmdResponse(QString, int, int)), this, SLOT(dev_cmdResponse(QString, int, int)), Qt::QueuedConnection);
@@ -136,12 +147,6 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
         connect(&invent, SIGNAL(ChangeScanMode(int)), this, SLOT(onInventChangeMode(int)), Qt::QueuedConnection);
         connect(&invent, SIGNAL(InventUpdate(QByteArray, InventifyRecord_t*, bool)),
                 this, SLOT(onInventUpdate(QByteArray, InventifyRecord_t*, bool)), Qt::QueuedConnection);
-    }
-
-    if (useLocalDb)
-    {
-        wrProxy.dbstore = &dbstore;
-        invent.dbstore = &dbstore;
     }
     wrProxy.loadRecordsDb();        //不使用dbstore也要空WritedRec, KillRec
     emit writedCountChanged();
@@ -159,7 +164,6 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
     }
     else
         setMiscMessage(prompt, 1);
-
     return(res);
 }
 
@@ -178,6 +182,7 @@ bool URfidWrapper::setInventifyMode(bool inventMode)
 
     if (!inventMode)
     {
+//        qDebug()<<"start write tags mode";
         wrProxy.startWritor();
         disconnect(rfidDev, SIGNAL(tagIdentify(IdentifyEPC_t,int)), &invent, SLOT(onTagIdentified(IdentifyEPC_t,int)));
         connect(rfidDev, SIGNAL(tagIdentify(IdentifyEPC_t,int)), this,
@@ -206,7 +211,10 @@ bool URfidWrapper::findTagsForWrite(bool start)
     if (start)
     {
         if (!wrProxy.writingLock && !wrProxy.identifyRuning)
+        {
             wrProxy.identifyRun(true);
+//            qDebug()<<"find tags for wtite";
+        }
         else
             return(false);
     }
@@ -459,7 +467,12 @@ bool URfidWrapper::runInvent(bool startRun, int scanMode)
             return(false);
         _inventScanTick = 0;
     }
-    return(invent.runInventify(startRun, scanMode));
+    bool res = invent.runInventify(startRun, scanMode);
+    if (res && scanMode !=0)
+    {
+        emit(inventScanModeUpdate((scanMode==2)));
+    }
+    return(res);//    return(invent.runInventify(startRun, scanMode));
 }
 
 void URfidWrapper::toggleInventMode()
@@ -479,7 +492,33 @@ void URfidWrapper::inventResetLet(bool discard)
             dbstore.markInventsDiscard();
         }
         invent.inventClear(!discard);
+        emit(inventScanChanged());
     }
+}
+
+
+void URfidWrapper::inventSetGroupId(int grpId)
+{
+    if (invent.currentGroupId != grpId)
+        invent.currentGroupId = grpId;
+/*
+    if (!invent.scanRuning)
+    {
+        if (grpId <0)
+        {
+            dbstore.markInventsDiscard();
+            invent.inventClear(false);
+            emit(inventScanChanged());
+        }
+        else
+        {
+            invent.inventClear(true);
+            if (invent.currentGroupId != grpId)
+                invent.currentGroupId = grpId;
+        }
+    }
+*/
+
 }
 
 void URfidWrapper::onInventChangeMode(int mode)
@@ -515,6 +554,9 @@ void URfidWrapper::onInventUpdate(QByteArray epc, InventifyRecord_t* pRec, bool 
         s1 = QString("%1.%2").arg(pRec->hitTimeElapsed/1000).arg(r1);
     }
     jo["hitTime"] = s1;
+    jo["formatId"] = pRec->formatId;    //
+    jo["groupId"] = pRec->groupIdA;
+    jo["context"] = QString::fromLatin1(pRec->identifier);
     if (!isNew)
     {
         emit(inventTagUpdate(jo));
@@ -522,16 +564,17 @@ void URfidWrapper::onInventUpdate(QByteArray epc, InventifyRecord_t* pRec, bool 
     }
 
     //
-    jo["context"] = QString::fromLatin1(pRec->identifier);
+//    jo["context"] = QString::fromLatin1(pRec->identifier);
     jo["title"] ="";            //书名，待扩展
-    if (pRec->formatId ==0)
+/*    if (pRec->formatId ==0)
         s1 = "标准";
     else
         s1 = srcformat.getFormatTitle(pRec->formatId);
     jo["formatId"] = s1;
+*/
     if (pRec->formatId >=0)
         jo["securityBit"] = QString::number(pRec->securityBit);
-    jo["groupId"] = pRec->groupIdA;
+//    jo["groupId"] = pRec->groupIdA;
     emit(inventTagUpdate(jo));
 }
 
@@ -662,14 +705,19 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
     }
     //
     int res;
-    if (tabSelect !=0)
+/*    if (tabSelect !=0)
     {
         res = dbstore.exportToCsv(mfilename, tabSelect-1);
     }
     else
     {
         res = dbstore.inventExport2csv(mfilename);
-    }
+    } */
+    if (tabSelect >=2)
+        res = dbstore.exportToCsv(mfilename, tabSelect-2);
+    else
+        res = dbstore.inventExport2csv(mfilename, tabSelect);
+
     if (res <0)
     {
         joRes["error"] = -2;
@@ -682,17 +730,23 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
         joRes["message"] = QString("数据导出成功，共:%1 条记录").arg(res);
     }
     //
-    if (tabSelect !=0)
+/*    if (tabSelect !=0)
     {
         if (tabSelect ==1)
             wrProxy.writeRec.dailyCount = 0;
         else if (tabSelect ==3)
             wrProxy.killAuxRec.dailyCount = 0;
         emit writedCountChanged();
-    }
-    else
+    } */
+    if (tabSelect ==2)
     {
-        invent.inventClear(false);
+        wrProxy.writeRec.dailyCount = 0;
+        wrProxy.killAuxRec.dailyCount = 0;
+        emit writedCountChanged();
+    }
+    else if (tabSelect ==0)
+    {
+        invent.inventClear(false);      //硬清除
         _inventScanTick = 0;
         emit(inventScanChanged());
     }
@@ -734,6 +788,15 @@ QString URfidWrapper::doSysFileOpenDialog(QString initDir, QString filter)
     selfile.setLabelText(QFileDialog::Accept, "选择");
     selfile.setLabelText(QFileDialog::Reject, "取消");
     selfile.setOptions(QFileDialog::DontUseNativeDialog);   //不用系统Gtk Dialog
+    selfile.setViewMode( QFileDialog::Detail);
+    //实现多文件选择
+    QTreeView *pTreeView = selfile.findChild<QTreeView*>("treeView");
+    if (pTreeView)
+    {
+        pTreeView->setSelectionMode(QAbstractItemView::MultiSelection);
+//        pTreeView->model()->setHeaderData(1, Qt::Horizontal, tr("文件名"));
+    }
+    selfile.setFixedSize(720, 720);
 
     QString filenames = "";
     if (selfile.exec()==QDialog::Accepted)
@@ -894,9 +957,9 @@ QJsonArray URfidWrapper::getSysConfigs()
     joRes.append(jRow);
 
     //
-    jRow["name"] = "下载升级";
+    jRow["name"] = "文件升级";
     jRow["editor"] = "text";
-    jRow["value"] = "";
+    jRow["value"] = _xupdatePrompt;
     joRes.append(jRow);
 
     return(joRes);
@@ -925,7 +988,7 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
             reqPsk = jRow["value"].toString();
         else if (idname == "日期时间")
             reqNtp = (jRow["value"].toString().indexOf("NTP") >=0);
-        else if (idname == "下载升级")
+        else if (idname == "文件升级")
             reqUpdUrl = jRow["value"].toString();
     }
 
@@ -954,11 +1017,84 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
     }
     //
     QString fpath = getExtMediaPath();
-    if ((reqUpdUrl == "file://" + fpath)&& fpath.length()>0)
+//    if ((reqUpdUrl == "file://" + fpath)&& fpath.length()>0)
+    if ((reqUpdUrl == "file:/" + fpath)&& fpath.length()>0)
     {
+//        qDebug()<<"call update sys files!";
         system("./cpupdfile.sh");
+        _xupdatePrompt = "文件已复制，重启更新";
         updCnt++;
     }
 
     return(updCnt);
+}
+
+QByteArray URfidWrapper::loadJsonTextFile(QString path)
+{
+    QFile loadFile(path);
+    if (!loadFile.open(QIODevice::ReadOnly))
+        return("");
+    if (QString::compare(QFileInfo(loadFile).suffix(),"txt", Qt::CaseInsensitive) ==0)
+    {
+        QStringList strList;
+        while(!loadFile.atEnd())
+        {
+            QByteArray line = loadFile.readLine();
+            strList.append(line.trimmed());
+        }
+        QJsonArray jarray = QJsonArray::fromStringList(strList);
+        QJsonDocument doc;
+        doc.setArray(jarray);
+        return(doc.toJson());
+    }
+    //是Json object
+    QByteArray jsonDat = loadFile.readAll();
+    loadFile.close();
+    QJsonParseError json_err;
+    QJsonDocument jDoc = QJsonDocument::fromJson(jsonDat, &json_err);
+    if (json_err.error != QJsonParseError::NoError)
+        return("");
+    if (!jDoc.isObject())
+        return("");
+    //对比原ByteArray，Tab(\t)用空格替代了，换行(\n)保留，主要的是，条目按Key重新排序了
+    return(jDoc.toJson(QJsonDocument::Compact));
+//    return(jsonDat);
+}
+
+bool URfidWrapper::saveJsonTextFile(QByteArray joStr, QString path)
+{    
+    QFile jfile(path);
+    if (!jfile.open(QIODevice::WriteOnly | QIODevice::Text))
+        return(false);
+    QTextStream out(&jfile);
+
+    QJsonDocument doc = QJsonDocument::fromJson(joStr);
+    if (doc.isNull())
+    {
+        jfile.close();
+        return(false);
+    }
+    if ((QString::compare(QFileInfo(jfile).suffix(),"txt", Qt::CaseInsensitive) ==0) && doc.isArray())
+    {
+        QJsonArray jArray = doc.array();
+        for(int i=0; i<jArray.count(); i++)
+        {
+//            out<<jArray.at(i).toString()<<endl;
+            out<<jArray.at(i).toString()<<"\r\n";
+        }
+        jfile.flush();
+        jfile.close();
+        return(true);
+    }
+
+    if (!doc.isObject())
+    {
+        jfile.close();
+        return(false);
+    }
+    QByteArray dat = doc.toJson(QJsonDocument::Indented);   //保留标准格式
+    out<<dat;
+    jfile.flush();
+    jfile.close();
+    return(true);
 }

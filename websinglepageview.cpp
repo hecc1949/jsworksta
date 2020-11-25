@@ -1,8 +1,11 @@
 #include "websinglepageview.h"
 #include "containerwindow.h"
 #include "ui_passworddlg.h"
+//#include "mfiledialog.h"
+//#include "filebrowser.h"
 #include <QMenu>
 #include <QFileDialog>
+#include <QTreeView>
 #include <QMessageBox>
 
 #include <QContextMenuEvent>
@@ -38,6 +41,63 @@ bool WebPage::acceptNavigationRequest(const QUrl &url, NavigationType type, bool
 //        return(false);
 
     return(true);
+}
+
+QStringList WebPage::chooseFiles(FileSelectionMode mode, const QStringList &oldFiles,
+                    const QStringList &acceptedMimeTypes)
+{
+    Q_UNUSED(oldFiles);
+
+    QString dir = QCoreApplication::applicationDirPath();
+    QStringList filter;
+    if (acceptedMimeTypes.contains("text/plain"))
+    {
+        filter<<"text files(*.txt *.csv *.json)";
+        if (QDir(dir+"/csv/").exists())
+            dir = dir + "/csv";
+        else if (QDir(dir+"/txt/").exists())
+            dir = dir + "/txt";
+    }
+    else if (acceptedMimeTypes.contains("image/*"))
+    {
+        filter<<"image files(*.jpg *.png *.bmp)";
+    }
+
+    QFileDialog* selfile = new QFileDialog();
+    selfile->setNameFilters(filter);
+    selfile->setDirectory(dir);
+
+    selfile->setAcceptMode(QFileDialog::AcceptOpen);
+    selfile->setWindowTitle("选择文件");      //无效
+    selfile->setLabelText(QFileDialog::LookIn,"路径");
+    selfile->setLabelText(QFileDialog::FileName,"文件名");
+    selfile->setLabelText(QFileDialog::FileType,"文件类型");
+    selfile->setLabelText(QFileDialog::Accept, "选择");
+    selfile->setLabelText(QFileDialog::Reject, "取消");
+    selfile->setOptions(QFileDialog::DontUseNativeDialog | QFileDialog::ReadOnly);   //不用系统Gtk Dialog
+    selfile->setViewMode( QFileDialog::Detail);
+
+    if (mode == QWebEnginePage::FileSelectOpenMultiple)
+    {
+        //实现多文件选择
+        selfile->setFileMode(QFileDialog::ExistingFiles);    //按住Ctrl可以多选
+        QTreeView *pTreeView = selfile->findChild<QTreeView*>("treeView");
+        if (pTreeView)
+        {
+            pTreeView->setSelectionMode(QAbstractItemView::MultiSelection);
+        }
+    }
+    else
+    {
+        selfile->setFileMode(QFileDialog::ExistingFile);
+    }
+    selfile->setFixedSize(720, 720);
+
+    QStringList filenames;
+    if (selfile->exec()==QDialog::Accepted)
+        filenames = selfile->selectedFiles();
+    delete selfile;
+    return(filenames);
 }
 
 //将js输出的debug信息导出到qDebug终端输出
@@ -313,4 +373,5 @@ int WebSinglePageView::linkChildEvent()
     return(cnt);
 }
 */
+
 

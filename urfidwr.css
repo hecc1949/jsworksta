@@ -62,13 +62,14 @@ body {
 .datagrid-cell-group,
 .datagrid-header-rownumber,
 .datagrid-cell-rownumber    {
-    font-size: 18px;
+/*    font-size: 18px;  */
+    font-size: 1.2em;
     font-weight: normal;
     font-family: msyh;
 }
 
 .easyui-linkbutton .l-btn-text {
-    font-size: 1.2em;
+    font-size: 1.4em;
 }
 
 .pagination-link .l-btn-text, .pagination-info {
@@ -109,4 +110,14 @@ body {
     font-size: 1.5em;
 }
 
+.label-left, .label-top,
+.easyui-validatebox    {
+    font-size: 1.2em;
+}
+
+/*
+.panel-body {
+    font-size: 1.0em;
+}
+*/
 

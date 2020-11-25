@@ -12,7 +12,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = jsWorksta
 TEMPLATE = app
 
-VERSION = 0.1.0
+VERSION = 0.1.1
 DEFINES += VERSION_STRING=\\\"$${VERSION}\\\"
 
 INCLUDEPATH += $$PWD/../urfidLib/inc
@@ -89,6 +89,5 @@ DISTFILES += \
     icon.css \
     bookUItems.json \
     EpcDefItems.json \
-    banksConfig.json \
-    基于HTML5的嵌入式UHF-RFID应用.md
+    banksConfig.json
 

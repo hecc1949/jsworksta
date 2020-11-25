@@ -5,6 +5,8 @@
 #include <QWebEngineView>
 #include <QWebEnginePage>
 #include <QEvent>
+#include <QFileDialog>
+
 #include "urfidwrapper.h"
 #include <QApplication>
 
@@ -24,13 +26,14 @@ protected:
 //    QWebEnginePage *createWindow(WebWindowType) override;
     bool acceptNavigationRequest(const QUrl &url, NavigationType type, bool isMainFrame);
     void javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level, const QString &message,
-                                  int lineNumber, const QString &sourceID);
+                        int lineNumber, const QString &sourceID);
+    QStringList chooseFiles(FileSelectionMode mode, const QStringList &oldFiles,
+                        const QStringList &acceptedMimeTypes);
 
 private slots:
     void doAuthRequired(const QUrl &requestUrl, QAuthenticator *auth);
     void doProxyAuthRequired(const QUrl &requestUrl, QAuthenticator *auth, const QString &proxyHost);
 };
-
 
 
 class WebSinglePageView : public QWebEngineView

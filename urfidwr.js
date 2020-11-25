@@ -16,13 +16,25 @@ var hotWriteObj = {
 window.channel = null;
 window.devwrapper = null;       //这个先于qwebchannel初始化，界面初始化时qwebchannel未打开，有必要用这个判断
 
-var isInventMode = false;
+var isInventMode = true;
 var barcodeNewline = false, scanRuning = false, inventRuning = false;
 
 var wrEventBuf = [];
-var m_InventRecBuf = [];
 
-var locFileManage = {fileNames:"", extMediaPath:"", uploadUrl:""    };
+var m_InventRecBuf = [];            //点验，接收-显示缓存
+var m_inventGrps = [];              //已上架标签缓存，只保留条码。动态变长，发送后清除
+var m_hotInventGrpId = 0;           //当前分组（书架）索引
+var inventCounter = {
+    foundTags: 0,               //接收到的总数
+    contextValidTags: 0,        //识别出格式(formatId>=0)的标签数
+    groupedTags: 0,             //已进行上架分组的标签总数, 仅有效标签
+    groupValidTags: 0,          //已进行上架分组的标签总数，包括空白标签，因此比m_inventGroupValidTags可能要多
+    frameTags: 0,               //发现的书架标签数
+    crossGrpCount: 0            //误读已分组上架标签次数
+}
+
+var m_locfile_mediaPath = "";
+var m_setting;
 
 //界面初始化。等效于放在$(document).ready((function()  {    }) 中
 $(function initViews()  {
@@ -90,11 +102,20 @@ $(function initViews()  {
 
     //--- 点验 ---
     //计数显示
-    $("#inventTagCount, #inventFmtTagCount, #inventRunCount").each(function()   {
+    $("#inventTagCount, #inventRunCount").each(function()   {
         $(this).textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"});
     });
+    $("#inventUnFmtTagCount, #inventGroupedCount,#inventCrosGrpCount").each(function()   {
+        $(this).textbox('textbox').css({fontSize: "1.5em", fontWeight:"bold",color:"black"});
+    });
+
     //点验表格
-    $("#inventTab").datagrid({loadFilter: pagerFilter});
+    $("#inventTab").datagrid({
+        loadFilter: pagerFilter,
+        onSelect:function() {       //附加工作，锁住分组表格的下select光标
+            $("#grptags").datalist('selectRow', m_hotInventGrpId);
+        }
+    });
     $("#inventTab").datagrid('getPager').css({height:"40px"});
     //扫描速度选择框
     $("#inventSpeed").combo('textbox').css({fontSize: "1.2em"});
@@ -106,7 +127,7 @@ $(function initViews()  {
         }
     });
 
-    //点验事件执行
+    //点验执行
     $("#btnInventRun").bind('click', runInvent);
     $("#btnInventMode").linkbutton({
         onClick: function() {
@@ -119,18 +140,20 @@ $(function initViews()  {
     $("#btnInventNewGrp").linkbutton({
         onClick: function() {
             if (devwrapper !== null && !inventRuning)  {
-                m_InventRecBuf.splice(0, m_InventRecBuf.length);        //清空
-                $("#inventTab").datagrid('loadData', m_InventRecBuf);
-                $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
-                devwrapper.inventResetLet(false);
-//                devwrapper.inventResetLet(true);
+                inventNewGroup(false);
+//                tstSendJson();
             }
         }
     });
+    $("#btnInventFinish").linkbutton({
+        disabled: true,
+        onClick: doInventFinish
+    });
+
 
     // --- 数据管理 ---
-    $("#wrEventDb").datagrid({loadFilter: pagerQueryDb});
     $("#inventDb").datagrid({loadFilter: pagerQueryDb});
+    $("#wrEventDb").datagrid({loadFilter: pagerQueryDb});
     $('#dbTableSelect').tabs({
         onSelect: function(title, index) {
             var selAct = $("#dbExportMarkSel").switchbutton("options").checked;
@@ -156,18 +179,16 @@ $(function initViews()  {
     $("#exportTofile").textbox({
         onClickButton: function() {
             if (devwrapper !== null)    {
-                var tabsel = 0;     //0-invent未导出， 1-wrtag未导出， 2-wrtag全部
-                if ($('#dbTableSelect').tabs('getTabIndex', $('#dbTableSelect').tabs('getSelected')) ===0)  {
-                    tabsel = 1;
-                    if (!($("#dbExportMarkSel").switchbutton("options").checked))   {
-                        tabsel = 2;
-                    }
+                //table选择：0-invents未导出， 1-invents全部  2-wrtag未导出， 3-wrtag全部
+                var tabsel =2*$('#dbTableSelect').tabs('getTabIndex', $('#dbTableSelect').tabs('getSelected'));
+                if (!($("#dbExportMarkSel").switchbutton("options").checked))   {
+                    tabsel +=1;
                 }
                 var filename = $("#exportTofile").textbox("getValue");
                 devwrapper.exportDbRecords(tabsel, filename, function(jo)   {
                     if (jo.error === 0) {
                         $.messager.alert('导出数据成功', jo.message,'info');
-                        if (tabsel ===0)
+                        if (tabsel <2)
                             clearInventPanel();
                         else
                             clearWrTagPanel();
@@ -181,66 +202,23 @@ $(function initViews()  {
             }
         }
     });
-    $("#exportTofile").textbox('textbox').css("fontSize", "1.5em");     //要在event配置后面
-    //文件操作
-    $("#fileSelect").textbox({
-        onClickButton: function() {
-            if (devwrapper !== null)    {
-                devwrapper.doSysFileOpenDialog("csv", "csv files(*.csv),text files(*.txt)", function(filenames)    {
-                    if ($("#multiSelfile").checkbox('options').checked)   {
-                        var fnames = $("#fileSelect").textbox('getValue');
-                        if (fnames.length>0)  {
-                            if (locFileManage.fileNames.indexOf(filenames) >=0) {
-                                $.messager.alert('无效', '重复选择文件','warning');
-                                return;
-                            }
-                            fnames += ", ";
-                            locFileManage.fileNames += ",";
-                        }
-                        locFileManage.fileNames += filenames;
-                        fnames += filenames.substr(filenames.lastIndexOf('/')+1);
-                        $("#fileSelect").textbox('setValue', fnames);
-                    }   else    {
-                        $("#fileSelect").textbox('setValue', filenames);
-                        locFileManage.fileNames = filenames;
-                    }
-                });
-            }
-        }
+    $("#exportTofile").textbox('textbox').focus(function()  {
+        devwrapper.imeEnable(true);
     });
-    $("#fileSelect").textbox('textbox').css("fontSize", "1.2em");
+    $("#exportTofile").textbox('textbox').blur(function()  {
+        devwrapper.imeEnable(false);
+    })
+    $("#exportTofile").textbox('textbox').css("fontSize", "1.5em");     //要在event配置后面
 
+    //文件操作
     $("#fileCopy2Sd").linkbutton({
-        onClick: function() {
-            if (locFileManage.fileNames.length>0 && locFileManage.extMediaPath.length>0)    {
-                devwrapper.doSysFileCommand("copy", locFileManage.fileNames, locFileManage.extMediaPath,
-                    function(res)   {
-                        if (res.error ===0)     {
-                            $.messager.alert('文件', res.message, 'info');
-                        }   else    {
-                            $.messager.alert('文件处理错误', res.message, 'error');
-                        }
-                });
-            }
-        }
+        onClick: function() {locFileOperate("copy");   }
     });
     $("#fileDelete").linkbutton({
-        onClick: function() {
-            if (locFileManage.fileNames.length>0)    {
-                devwrapper.doSysFileCommand("delete", locFileManage.fileNames, '',
-                    function(res)   {
-                        if (res.error ===0)     {
-                            $.messager.alert('文件', res.message, 'info');
-                            $("#fileSelect").textbox('setValue', '');
-                            locFileManage.fileNames = '';
-                        }   else    {
-                            $.messager.alert('文件处理错误', res.message, 'error');
-                        }
-                });
-            }
-        }
+        onClick: function() {locFileOperate("delete");   }
     });
-
+    $("#uploadfiles").filebox({ onChange: uploadDatfiles });
+    $("#uploadfiles").filebox('textbox').css("fontSize", "1.2em");;
 
     //系统
     $("#configApply").linkbutton({
@@ -261,13 +239,24 @@ $(function initViews()  {
     });
     $("#btnClose").linkbutton({
         onClick: function() {
-            $.messager.confirm({title:'退出系统', msg: '确定要退出程序？',
-                fn: function(r){
-                    if (r)  {
-                        devwrapper.sysClose();
+            if (m_InventRecBuf.length>0 || m_inventGrps.length>0)   {
+                $.messager.confirm({width:600, height: 180, title:'退出系统',
+                    msg: '警告：点验数据没有完整上报，退出程序将丢失 <br/>应该上报数据或转成txt文件保存再退出.',
+                    fn: function(r){
+                        if (!r)  {
+                            devwrapper.sysClose();
+                        }
                     }
-                }
-            });
+                });
+            }   else    {
+                $.messager.confirm({title:'退出系统', msg: '确定要退出程序？',
+                    fn: function(r){
+                        if (r)  {
+                            devwrapper.sysClose();
+                        }
+                    }
+                });
+            }
         }
     });
 
@@ -277,7 +266,8 @@ $(function initViews()  {
             layout: ['sep','first','prev','links','next','last','sep','refresh','info']
         });
     });
-    //页面载入，设置焦点    
+
+    //页面载入，设置焦点
     $("#barcodeInput").next('span').find('input').focus();
 });
 
@@ -288,13 +278,18 @@ $(function()    {
     }
     window.channel = new QWebChannel(qt.webChannelTransport, function(channel) {
         window.devwrapper = channel.objects.urfidWrapper;
-//        devwrapper.openURfidWritor(0, true, function(res) {
-        devwrapper.openURfidWritor(1, true, function(res) {
+        devwrapper.openURfidWritor(1, true, function(res) {     //0-写标签模式，1-点验模式
             if (!res)   {
                 $("#barcodeInput").textbox('disable');
                 $("#btnFindTag").linkbutton("disable");
-
+                $("#btnInventRun").linkbutton("disable");
             }
+            inventCounter.foundTags = devwrapper.inventTagNumber;
+            $("#inventTagCount").textbox('setValue', inventCounter.foundTags);
+
+            devwrapper.getInventScanPeriod(function(val)  {
+                $("#inventSpeed").combobox('select', val);
+            });
         });
         devwrapper.writedCountChanged.connect(function()    {
             mWritedCount = devwrapper.writedCount;
@@ -307,23 +302,21 @@ $(function()    {
                 $("#statusBar").text(devwrapper.promptMessage);
             }
         });
-/*#        devwrapper.showSysToolbar(1000);
-        $("#banner").hover(function()   {
-            devwrapper.showSysToolbar(5000);
-        });
-*/
         //读写器event连接到处理函数
+        //写标签功能
         devwrapper.findTagTick.connect(onfindTagTick);
         devwrapper.findTagUpdate.connect(onfindTagUpdate);
-
+        //点验功能
         devwrapper.inventScanChanged.connect(function() {
-            var inventCount = devwrapper.inventScanCount;
-            var inventTags = devwrapper.inventTagNumber;
-            var inventFmtTags = devwrapper.inventFmtTagNumber;
-            $("#inventRunCount").textbox('setValue', inventCount);
-            $("#inventTagCount").textbox('setValue', inventTags);
-            $("#inventFmtTagCount").textbox('setValue', inventFmtTags);
+            $("#inventRunCount").textbox('setValue', devwrapper.inventScanCount);
+            inventCounter.foundTags = devwrapper.inventTagNumber;
+            inventCounter.contextValidTags = devwrapper.inventFmtTagNumber;
+            $("#inventTagCount").textbox('setValue', inventCounter.foundTags);
+            var cnt1 = inventCounter.foundTags - inventCounter.contextValidTags + inventCounter.frameTags;
+            $("#inventUnFmtTagCount").textbox('setValue', cnt1);
+
         });
+
         devwrapper.inventScanModeUpdate.connect(function(detailScan)    {
             if (detailScan)     {
                 $("#btnInventMode").linkbutton({"text":"普通扫描"});
@@ -335,6 +328,30 @@ $(function()    {
         });
         devwrapper.inventTagUpdate.connect(onInventTagUpdate);
 
+        //一般配置，读出
+        devwrapper.getSysConfigs(function(res) {
+            $('#configSettings').propertygrid('loadData', res);
+        });
+        //IP输入框
+        devwrapper.loadJsonTextFile("setting.json", function(res){
+            jo = JSON.parse(res);
+            if (jo !== null)    {
+                m_setting = jo;
+                if (jo.serverIp !== undefined)  {
+                    $("#serverIp").val(jo.serverIp);
+                }
+            }   else    {
+                m_setting = {"serverIp":"127.0.0.1" };
+            }
+        });
+        $("#serverIp").bind('blur', function()  {
+            if ($(this).validatebox('isValid'))  {
+                if (m_setting.serverIp===undefined || $(this).val() !== m_setting.serverIp)   {
+                    m_setting.serverIp = $(this).val();
+                    devwrapper.saveJsonTextFile(JSON.stringify(m_setting),"setting.json");
+                }
+            }
+        })
     });
 });
 
@@ -405,7 +422,7 @@ function functionsMain(title, index)    {
             $("#exportTofile").textbox("setValue", filename);
             //检查可用的sdcard/udisk
             devwrapper.getExtMediaPath(function(fpath)  {
-                locFileManage.extMediaPath = fpath;
+                m_locfile_mediaPath = fpath;
                 if (fpath.length ===0)  {
                     $("#fileCopy2Sd").linkbutton("disable");
                 }   else    {
@@ -419,17 +436,12 @@ function functionsMain(title, index)    {
             });
         }   else if (index===3)  {
             devwrapper.imeEnable(true);
-            //读取配置
-            devwrapper.getSysConfigs(function(res) {
-                $('#configSettings').propertygrid('loadData', res);
-            });
         }   else    {
             devwrapper.imeEnable(false);
         }
     }
 }
 
-//---------------------- 写标签功能 ---------------------------------------------
 function clearWrTagPanel()  {
     $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
     wrEventBuf.length = 0;
@@ -447,11 +459,24 @@ function clearWrTagPanel()  {
 
 function clearInventPanel() {
     m_InventRecBuf.splice(0, m_InventRecBuf.length);
+    m_inventGrps.splice(0, m_inventGrps.length);
+    m_hotInventGrpId = 0;
+    for(var key in inventCounter)   {
+        inventCounter[key] = 0;
+    }
+
     $("#inventTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
     $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
+    $("#inventTagCount").textbox('setValue', "");
+    $("#inventUnFmtTagCount").textbox('setValue', "");
+    $("#inventCrosGrpCount").textbox('setValue', "");
+    $("#inventGroupedCount").textbox('setValue', "");
     $("#inventRunCount").textbox('setValue', "");
+
+    $("#grptags").datalist('loadData', {total:0, rows:[]});
 }
 
+//---------------------- 写标签功能 ---------------------------------------------
 //扫描枪输入
 function onBarcodeInput(e)  {    
     var barcode = $(this).val();        //取当前值。用$("id").textbox('getValue')取的不可靠
@@ -462,10 +487,14 @@ function onBarcodeInput(e)  {
             //返回值: 0-错误，1-要96bit标签，2-128bit标签，3-144bit以上标签。 负值为条码已写过，重复。
             if (tagtype >=1 && tagtype <=3) {
                 if (restype>0)  {
-                    $("#barcodeStatus").val("条码合法:");
+                    if (restype===1)
+                        $("#barcodeStatus").val("条码合规格");
+                    else if (restype===2)
+                        $("#barcodeStatus").val("条码要求128bit标签");
+                    else
+                        $("#barcodeStatus").val("条码要求144位以上标签");
                     hotWriteObj.barcodeRepeat = false;
-                }
-                else    {
+                }   else    {
                     $("#barcodeStatus").val("条码重复");
                     hotWriteObj.barcodeRepeat = true;
                 }
@@ -481,19 +510,17 @@ function onBarcodeInput(e)  {
 
                     if (scanRuning)     {
                         runFindTag();        //stop                        
-                    }
-                    else   {
+                    }   else   {
                         if (hotWriteObj.poolId>=0 && restype>0)  {      //条码重复则不启动写，但重新找标签
                             $("#usingTag").textbox('setValue', epc);
                             //写入动作C： 条码输入时已经找到空白标签，不在扫描状态(手动开启的），启动写入
                             writeTag();
-                        }
-                        else
+                        }   else    {
                             runFindTag();   //start
+                        }
                     }
                 });
-            }
-            else {
+            }   else    {
                 $("#barcodeStatus").val("条码错误");
                 $("#barcodeInput").textbox('textbox').focus();
                 return;
@@ -526,8 +553,7 @@ function runFindTag() {
                 $("#btnFindTag").linkbutton({"text": "停止"});
             }
         });
-    }
-    else  {
+    }    else  {
         devwrapper.findTagsForWrite(false, function(res) {            
             if (res)    {       //停止成功
                 scanRuning = false;
@@ -623,8 +649,8 @@ function onfindTagTick(count)    {
                     writeTag();
                 }
             }   else    {
-                if (hotWriteObj.barcode.length>0 && hotWriteObj.barcodeRepeat)  {
-                    $("#barcodeStatus").val("停止,条码重复");
+                if (hotWriteObj.barcode.length>0)  {
+                    $("#barcodeStatus").val("条码-标签不匹配");
                 }
                 else {
                     $("#barcodeStatus").val("扫描停止");
@@ -642,6 +668,7 @@ var wrTagStatus = ["写EPC失败", "写失败：不能写入User区","写失败�
 //执行标签写入
 function writeTag()   {
     if (hotWriteObj.poolId <0 || hotWriteObj.epc.length<4)  {
+        $("#barcodeStatus").val("条码-标签错误，不能写");
         return (false);
     }
     if ($("#foundtagTab").datagrid('getRows')[hotWriteObj.poolId].epcBits < hotWriteObj.reqEpcBits) {
@@ -737,7 +764,7 @@ function updateWritedRecord(joRes, isKill)   {
             wrEventBuf.forEach(function(row, rid)   {
                 if (row.tagserial === rec.tagserial)    {
                     rowid = rid;
-                    throw new Error("Enderative");
+                    throw new Error("EndInterative");
                 }
             });
         }   catch(e)   {
@@ -773,23 +800,46 @@ function updateWritedRecord(joRes, isKill)   {
     }
 }
 //---------------------- 点验功能 ---------------------------------------------
+var inventPrepare = false;
 function runInvent()    {
     if (devwrapper === null)
         return;
+    if (!inventPrepare)  {
+        if ($("#grptags").datalist('getRows').length ===0)  {
+            inventNewGroup(false);       //首次执行，自动开一个新分组
+        }
+        if (inventCounter.foundTags>0 && inventCounter.groupedTags===0 && m_InventRecBuf.length===0)    {
+            $.messager.confirm('记录数据清空', '有未导出的上次点验数据，是否清空重新开始?', function(r){
+                 if (r){
+                     devwrapper.inventResetLet(true);
+                 }
+             });
+            inventPrepare = true;
+            return;
+        }
+        inventPrepare = true;
+    }
+
+    var scanmode = 0;   //0-自动切换普通/精细模式，也可手动； 1-普通模式，可手动切换； 2-精细模式，可手动切换
+    if ($("#inventSpeed").combobox('getValue') < 200)   {
+        scanmode = 2;
+    }
     var startRun = !inventRuning;
-    devwrapper.runInvent(startRun, 0, function(res) {
+    devwrapper.runInvent(startRun, scanmode, function(res) {
         if (res)    {
             if (startRun)   {
                 $("#btnInventRun").linkbutton({"text":"停止"});
                 $("#btnInventMode").linkbutton("enable");
                 $("#btnInventNewGrp").linkbutton("disable");
                 $("#inventSpeed").combobox("disable");
+                $("#btnInventFinish").linkbutton("disable");
             }
             else {
                 $("#btnInventRun").linkbutton({"text":"点验"});
                 $("#btnInventMode").linkbutton("disable");
                 $("#btnInventNewGrp").linkbutton("enable");
                 $("#inventSpeed").combobox("enable");
+                $("#btnInventFinish").linkbutton("enable");
             }
             inventRuning = startRun;
         }
@@ -799,35 +849,65 @@ function runInvent()    {
 var refreshHold = false;
 function onInventTagUpdate(jo)  {
     var rec = {id: 0, epc: "", hitCount:0};
-    rec.id = jo.id;
     rec.epc = jo.epc;
     rec.hitCount = jo.hitCount;
     rec.hitTime = jo.hitTime;
 
+    //按格式/分组，做预处理
+    if (filterForFrameTags(jo)) {       //书架分组标签
+        if (jo["append"] && jo.context.length>0)   {
+            grprows = $("#grptags").datalist('getRows');
+            if (m_hotInventGrpId< grprows.length && grprows[m_hotInventGrpId].text[0] === '-')  {
+                $("#grptags").datalist('updateRow',{index: m_hotInventGrpId,
+                    row:{text: jo.context, value: m_hotInventGrpId+1    }});
+            }   else    {
+                $("#grptags").datalist('appendRow',{text: jo.context, value: grprows.length});    //加到分组表
+            }
+            inventCounter.frameTags++;
+        }
+        return;
+    }   else    {           //普通标签
+        if (jo.formatId ===0)
+            rec.formatId = "标准";
+        else if (jo.formatId < 0)
+            rec.formatId = "空白";
+        else
+            rec.formatId = "兼容格式"+ jo.formatId;
+    }
+
+    if (jo.groupId !== m_hotInventGrpId)    {           //其他分组
+        inventCounter.crossGrpCount++;
+        $("#inventCrosGrpCount").textbox('setValue', inventCounter.crossGrpCount);
+        return;
+    }
+    rec.groupNo = jo.groupId +1;
+    //
+    rec.id = jo.id;     //jo.id保存的是包含全部分组的缓存数组index+1
     var rowid = -1;
-    if (jo["append"])  {
-        rec.context = jo.context;
+    if (jo["append"])  {        //初次发现
+        if (jo.formatId>=0)
+            rec.context = jo.context;       //条码
+        else
+            rec.context = "";
         rec.title = jo.title;
-        rec.formatId = jo.formatId;
         if (jo.securityBit !== undefined)   {
             rec.securityBit = (jo.securityBit !==0);
         }
-        rec.groupId = jo.groupId;
-    }   else    {
-        if (jo.id >0 && jo.id<=m_InventRecBuf.length)   //数组严格存储无错时，jo.id是数组index+1
-            rowid = jo.id -1;
-        else    {
-            console.log("search for invent...");
-            try {
-                m_InventRecBuf.forEach(function(row, rid)   {
-                    if (row.id === jo.id)   {
-                        rowid = rid;
-                        throw new Error("EndInterative");
-                    }
-                });
-            }   catch(e)   {
-                if (e.message !== "EndInterative")   throw e;
-            }
+    }   else    {               //重复发现
+        //在有推入分组m_inventGrps[]和分离书架标签的情况下，jo.id与m_InventRecBuf[]缓存数组索引的关系被打乱，只能硬搜索
+        try {
+            m_InventRecBuf.forEach(function(row, rid)   {
+                if (row.id === jo.id)   {
+//                if (row.id === jo.id && row.epc ===jo.epc)   {
+                    rowid = rid;
+                    throw new Error("EndInterative");   //break forEach
+                }
+            });
+        }   catch(e)   {
+            if (e.message !== "EndInterative")   throw e;
+        }
+        if (rowid <0)   {
+            return;
         }
     }
     //提交显示
@@ -861,3 +941,162 @@ function onInventTagUpdate(jo)  {
     }
 }
 
+function inventNewGroup(saveHotOnly)   {
+    if (inventRuning)
+        return;
+    var grprows = $("#grptags").datalist('getRows');
+    //已找到的标签，提取出各内容（条码)项到m_inventGrps，清空显示表
+    if (m_InventRecBuf.length >0)   {
+        var grp = {"groupNo":m_hotInventGrpId+1, "grptag": "",
+            "count" : m_InventRecBuf.length,
+            "contexts" :[]};
+        if (grprows && grprows.length>m_hotInventGrpId) {
+            grp.grptag = grprows[m_hotInventGrpId].text;
+        }
+        m_InventRecBuf.forEach(function(row, rid)   {
+            if (row.context !==undefined && row.context.length>0)   {
+                grp.contexts.push(row.context);     //空白标签不加入
+                inventCounter.groupValidTags++;
+            }
+            inventCounter.groupedTags++;
+        });
+        m_inventGrps.push(grp);
+
+        m_InventRecBuf.splice(0, m_InventRecBuf.length);        //清空
+        $("#inventTab").datagrid('loadData', m_InventRecBuf);
+        $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
+        $("#inventGroupedCount").textbox('setValue', inventCounter.groupValidTags);
+        m_hotInventGrpId++;     //开启新分组
+    }
+    if (saveHotOnly)
+        return;
+    //开启新分组：分组（书架标签）表增加行并选择
+    if (grprows.length <=m_hotInventGrpId)   {
+        $("#grptags").datalist('appendRow',{text:'未指定标签', value: (m_hotInventGrpId+1)});
+    }
+    $("#grptags").datalist('selectRow', m_hotInventGrpId);    
+    //与dev端同步
+    devwrapper.inventSetGroupId(m_hotInventGrpId);
+    m_inventCrossGrpCount = 0;
+    $("#inventCrosGrpCount").textbox('setValue', 0);
+
+    //ajax发送已完成的分组
+    if (m_inventGrps.length >0 && m_setting.serverIp.length>0)     {
+        sendHotInventReport();
+    }
+}
+
+
+function sendHotInventReport(callback)  {
+    var sendjo = m_inventGrps[0];
+    sendjo.usrname = getOperatorName();
+    var size = sendjo.contexts.length;
+    $.ajax({
+        url: "http://" + m_setting.serverIp + ":2280/worksta/inventReport",
+        type:"POST",
+        timeout: 1000,
+        crossDomain: true,
+        dataType: 'json',
+        contentType: 'application/json; charset=utf-8',
+        data: JSON.stringify(sendjo),
+        processData:false,
+        success: function(res, textStatus, jQxhr ){
+            m_inventGrps.splice(0, 1);            
+            $("#inventMsgLabel").html("第-" +sendjo.groupNo + "组" + size+ " 条分组数据上传成功. >> "+ res.data);
+            if (m_inventGrps.length>0)  {
+                setTimeout(sendHotInventReport, 100);
+            }   else    {
+                if (callback)
+                    callback(true);
+            }
+        },
+        error: function(err, textStatus, errorThrown ){
+            $("#inventMsgLabel").html("第-" +sendjo.groupNo + "组数据联网上报时出错");
+            $.messager.show({title:'点验分组数据上报',	msg:'数据上报失败:<br/> 没有联网，或者接收服务没有开启',
+                    timeout:5000, showType:'slide'});
+            if (callback)
+                callback(false);
+        }
+    });
+}
+
+//书架标签格式定义
+function filterForFrameTags(joTag)  {
+    if (joTag.formatId===undefined || joTag.context===undefined)
+        return(false);
+    if (joTag.formatId <0 || joTag.context.length<4)
+        return(false);
+    var fix = false;
+    for(var i=0; i<joTag.context.length; i++)   {
+        if ((joTag.context[i]>='A' && joTag.context[i]<='Z')||(joTag.context[i]>='a' && joTag.context[i]<='z')) {
+            fix = true;
+            break;
+        }
+    }
+    return(fix);
+}
+
+//分组上架数据导出为txt文件
+function inventBuildTxtReport()   {
+    if (inventRuning || m_inventGrps.length===0)
+        return;
+     var buf = [];           //text行缓存
+    m_inventGrps.forEach(function(grp, id)   {
+        var title = "#" + grp.groupNo +" - " +grp.grptag + ",("+ grp.count+")";
+        buf.push(title);
+        grp.contexts.forEach(function(item, id) {
+            buf.push(item);
+        });
+    });
+
+    var dt = new Date();
+    var month = dt.getMonth()+1;
+    var filename = "csv/D"+ dt.getFullYear() + month + dt.getDate() +
+            "T"+ dt.getHours()+ dt.getMinutes()+ "-"+getOperatorName()+".txt";
+    devwrapper.saveJsonTextFile(JSON.stringify(buf), filename, function(res)    {
+        if (res)    {
+            $.messager.alert('导出数据', "未联网上报的数据保存在：<br/>" + filename,'info');
+            m_inventGrps.splice(0, m_inventGrps.length);
+            clearInventPanel()
+            devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+        }   else    {
+            $.messager.alert('导出文件失败', "未联网上报的数据保存文件出错",'error');
+        }
+    });
+}
+
+function doInventFinish()   {
+    if (inventRuning)   return(false);
+    if (m_InventRecBuf.length===0 && m_inventGrps.length===0)   {
+        if (inventCounter.foundTags >0) {
+            $.messager.confirm('结束点验', '数据已联网上报，清除记录不再导出?', function(r){
+                if (r)  {
+                    devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+                }
+            });
+        }
+        return(true);
+    }
+
+    inventNewGroup(true);           //未转换到m_inventGrps[]的，做转换    
+    var cnt = m_inventGrps.length;
+    if (cnt > 0)  {
+        sendHotInventReport(function(res)   {
+            if (!res)   {
+                $.messager.confirm('结束点验', '数据未能联网上报，保存到TXT文件?', function(r){
+                    if (r)
+                        inventBuildTxtReport();
+                    else
+                        return(false);
+                });
+            }   else    {
+                clearInventPanel();
+                $.messager.confirm('结束点验', '数据已联网上报，清除记录不再导出?', function(r){
+                    if (r)
+                        devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+                })
+            }
+        });
+    }
+    return(true);
+}

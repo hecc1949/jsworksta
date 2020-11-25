@@ -1,3 +1,13 @@
+//IP输入框格式定义
+$.extend($.fn.validatebox.defaults.rules, {
+    ip: {
+        validator: function(value) {
+            return (/\d+\.\d+\.\d+\.\d+/i.test(value));
+            },
+         message: 'IP地址格式不正确'
+    }
+});
+
 
 function formatTime(dt)   {
     var hours = dt.getHours();
@@ -29,39 +39,15 @@ $(function () {
     },1000);
 });
 
-//
-function fileNameFromTime(index, selAll)   {
-    var prefix = 'WR';
-    if (index ===1) {
-        prefix = 'IN';
-    }   else if (selAll)    {
-        prefix += 'A';
-    }
-    var dt = new Date();
-    var year = dt.getFullYear();
-    var month = dt.getMonth();
-    if (month <10)  {
-        month = '0'+month;
-    }
-    var days = dt.getDate();
-    if (days <10)   {
-        days = '0' + days;
-    }
-    var hours = dt.getHours();
-    var minutes = dt.getMinutes();
-    var seconds = dt.getSeconds();
-    if(hours<10)    {
-        hours = '0'+hours;
-    }
-    if(minutes<10)  {
-        minutes = '0'+minutes;
-    }
-    if(seconds<10)  {
-        seconds = '0'+seconds;
-    }
-    return(prefix + year + month + days + hours+minutes+seconds + ".csv");
+function convertUtcTime(utcTime)  {
+    var dt = new Date(utcTime);
+    var month = dt.getUTCMonth()+1;
+    var day = dt.getUTCDate();
+    var hours = dt.getUTCHours();
+    var minutes = dt.getUTCMinutes();
+    var seconds = dt.getUTCSeconds();
+    return(month+"/"+day+" "+hours+':'+minutes+':'+seconds);
 }
-
 
 //通用子函数：在datagrid中构建checkedbox表示的列项
 function formatCheckedColumn(val, rowDat, rowIndex) {
@@ -116,7 +102,6 @@ const tabInventsFieldNames = ["id", "invent_id", "exportMark",
         "EPC", "itemIdentifier",
         "exlink","grp_id","grp_id2","updtime"];
 */
-
 //用sql读取数据库的一页数据，转换成datagrid显示
 function loadDbRecords(selectMark, $dg, begin, pagesize, callback)    {
     var selTab_Invents = false;
@@ -139,29 +124,31 @@ function loadDbRecords(selectMark, $dg, begin, pagesize, callback)    {
             for(var i=0; i<rowNum; i++) {
                 var arow = joRes.rows[i];
                 var rec = {};               //必须是local的
-                if (!selTab_Invents)    {
+                if (!selTab_Invents)    {               //writedtags table
                     rec.id = parseInt(arow[0]);
                     rec.daily_id = parseInt(arow[1]);
                     rec.context = arow[4];
                     rec.epc = arow[5];
                     rec.tagserial = arow[6];
-                    rec.wrtime = arow[11];
+                    rec.wrtime = convertUtcTime(arow[11]);
                     rec.wrUsrBank = (parseInt(arow[8]) !== 0);
                     rec.locked = (parseInt(arow[10]) !== 0);
                     rec.remark = arow[13];
                     rec.exportMark = arow[2];
-                }   else    {
+                }   else    {                           //invents table
                     rec.id = parseInt(arow[0]);
                     rec.invent_id = parseInt(arow[1]);
                     rec.exportMark = parseInt(arow[2]);
-                    rec.inventGrp = parseInt(arow[6]);
+                    rec.inventGrp = parseInt(arow[6]) +1;
                     rec.epc = arow[3];
                     rec.context = arow[4];
                     if (parseInt(arow[7]) ===0)
                         rec.formatId = "标准";
+                    else if (parseInt(arow[7]) <0)
+                        rec.formatId = "空白";
                     else
                         rec.formatId = "格式"+arow[7];
-                    rec.updtime = arow[8];
+                    rec.updtime = convertUtcTime(arow[8]);
                 }
 
                 databuf.push(rec);
@@ -229,6 +216,96 @@ function pagerQueryDb(data) {
     return data;
 }
 
+
+function getOperatorName()  {
+    var opName = "";
+    var rows = $('#configSettings').propertygrid('getRows');
+    for(var i=0; i<rows.length; i++)    {
+        if (rows[i].name ==="操作员")  {
+            opName = rows[i].value;
+            break;
+        }
+    }
+    return(opName);
+}
+
+
+//--- 文件功能 ---------------------------------------------
+//导出文件的自动命名
+function fileNameFromTime(index, selAll)   {
+    var prefix = 'I';
+    if (index >=1) {
+        prefix = 'W';
+    }
+    if (selAll)
+        prefix += 'A';
+    var dt = new Date();
+    var month = dt.getMonth()+1;
+    var days = dt.getDate();
+    var hours = dt.getHours();
+    var minutes = dt.getMinutes();
+    var seconds = dt.getSeconds();
+    return(prefix + month + days + "T" + hours+minutes+seconds +"-"+ getOperatorName() +".csv");
+}
+
+//csv文件上传
+function uploadDatfiles(newValue, oldValue)   {
+    var files = $("#uploadfiles").filebox('files');     //
+//    var files = $(this).next().find('input[type=file]')[0].files;   //
+    if (!files || files.length ===0)  {
+        console.log("no file");
+        return;
+    }
+    var formData = new FormData();
+    $.each(files, function(i, file)    {
+        formData.append('upfiles', file);
+    });
+    var upurl = "http://" + m_setting.serverIp + ":2280/worksta/uploadFile";
+    $.ajax({
+        url: upurl,
+        type:"POST",
+        data:formData,
+        timeout: 800,           //!
+        processData:false,
+        contentType:false,
+        success:function(res)   {
+            if (res)    {
+                var msg;
+                if (files.lenght<2)
+                    msg = +newValue;
+                else
+                    msg = files.length + "个文件.";
+                $.messager.alert("文件上传成功", "已上传文件:<br/>"+msg, 'info');
+            }
+        },
+        error: function(err)    {
+            $.messager.alert('文件上传失败', '没有联网，上传地址(URL)错误，或接收服务没有开启'+m_setting.serverIp,'error');
+        }
+    })
+}
+
+//本地文件管理：复制到u盘和删除
+function locFileOperate(cmd)    {
+    if (devwrapper === null)
+        return;
+    devwrapper.doSysFileOpenDialog("csv", "csv files(*.csv),text files(*.txt)", function(filenames)    {
+        if (filenames.length ===0)
+            return;
+        var targetPath = "";
+        if (cmd ==="copy")
+            targetPath = m_locfile_mediaPath;
+        devwrapper.doSysFileCommand(cmd, filenames, targetPath,
+            function(res)   {
+                if (res.error ===0)     {
+                    $.messager.alert('文件', res.message, 'info');
+                }   else    {
+                    $.messager.alert('文件处理错误', res.message, 'error');
+                }
+        });
+    });
+}
+
+
 /*
 var cfgSettings = [
     {"id":0, "name": "主机名", "group":"名称", "value": "FLT", "editor":"" },
@@ -252,10 +329,5 @@ var cfgSettings = [
         }},
     {"id":7, "name": "下载升级", "group":"功能", "value": "", "editor":"text" }
 ];
-
-
-$(function()    {
-    $('#configSettings').propertygrid('loadData', cfgSettings);
-})
 */
 
