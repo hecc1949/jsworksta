@@ -966,13 +966,17 @@ function inventNewGroup(saveHotOnly)   {
         $("#inventTab").datagrid('loadData', m_InventRecBuf);
         $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
         $("#inventGroupedCount").textbox('setValue', inventCounter.groupValidTags);
+
+        var usedGrpTag = grprows[m_hotInventGrpId].text + "[已完成]";
+        $("#grptags").datalist('updateRow',{index: m_hotInventGrpId,
+            row:{text: usedGrpTag, value: m_hotInventGrpId+1    }});
         m_hotInventGrpId++;     //开启新分组
     }
     if (saveHotOnly)
         return;
     //开启新分组：分组（书架标签）表增加行并选择
     if (grprows.length <=m_hotInventGrpId)   {
-        $("#grptags").datalist('appendRow',{text:'未指定标签', value: (m_hotInventGrpId+1)});
+        $("#grptags").datalist('appendRow',{text:'-未指定标签', value: (m_hotInventGrpId+1)});
     }
     $("#grptags").datalist('selectRow', m_hotInventGrpId);    
     //与dev端同步
