@@ -464,6 +464,9 @@ function clearInventPanel() {
     for(var key in inventCounter)   {
         inventCounter[key] = 0;
     }
+    if (devwrapper !== null)    {
+        devwrapper.inventSetGroupId(m_hotInventGrpId);
+    }
 
     $("#inventTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
     $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
@@ -859,7 +862,7 @@ function onInventTagUpdate(jo)  {
             grprows = $("#grptags").datalist('getRows');
             if (m_hotInventGrpId< grprows.length && grprows[m_hotInventGrpId].text[0] === '-')  {
                 $("#grptags").datalist('updateRow',{index: m_hotInventGrpId,
-                    row:{text: jo.context, value: m_hotInventGrpId+1    }});
+                    row:{text: jo.context, value: m_hotInventGrpId+1    }});    //替换"-未定义分组标签"
             }   else    {
                 $("#grptags").datalist('appendRow',{text: jo.context, value: grprows.length});    //加到分组表
             }
@@ -972,18 +975,21 @@ function inventNewGroup(saveHotOnly)   {
             row:{text: usedGrpTag, value: m_hotInventGrpId+1    }});
         m_hotInventGrpId++;     //开启新分组
     }
-    if (saveHotOnly)
+/*    if (saveHotOnly)
         return;
+*/
     //开启新分组：分组（书架标签）表增加行并选择
     if (grprows.length <=m_hotInventGrpId)   {
         $("#grptags").datalist('appendRow',{text:'-未指定标签', value: (m_hotInventGrpId+1)});
     }
     $("#grptags").datalist('selectRow', m_hotInventGrpId);    
-    //与dev端同步
+    //与dev端同步。m_hotInventGrpId更改后必须做
     devwrapper.inventSetGroupId(m_hotInventGrpId);
     m_inventCrossGrpCount = 0;
     $("#inventCrosGrpCount").textbox('setValue', 0);
 
+    if (saveHotOnly)
+        return;
     //ajax发送已完成的分组
     if (m_inventGrps.length >0 && m_setting.serverIp.length>0)     {
         sendHotInventReport();
@@ -1069,6 +1075,7 @@ function inventBuildTxtReport()   {
     });
 }
 
+//手工结束点验
 function doInventFinish()   {
     if (inventRuning)   return(false);
     if (m_InventRecBuf.length===0 && m_inventGrps.length===0)   {
@@ -1090,8 +1097,10 @@ function doInventFinish()   {
                 $.messager.confirm('结束点验', '数据未能联网上报，保存到TXT文件?', function(r){
                     if (r)
                         inventBuildTxtReport();
-                    else
-                        return(false);
+                    else    {
+//                        clearInventPanel();
+                        return(false);  //
+                    }
                 });
             }   else    {
                 clearInventPanel();
