@@ -10,17 +10,20 @@
         <link rel="stylesheet" type="text/css" href="easyui.css">
         <link rel="stylesheet" type="text/css" href="icon.css">
         <!-- 自定义style -->
-        <link rel="stylesheet" type = "text/css" href = "urfidwr.css"/>
+        <link rel="stylesheet" type = "text/css" href = "urfidView.css"/>
         <!-- 必须加的一个js接口文件 -->
         <script type="text/javascript" src="./qwebchannel.js"></script>
         <!-- 应用js-->
         <script type="text/javascript" src="utils.js"></script>
         <script type="text/javascript" src="urfidwr.js"></script>
-
+        <script type="text/javascript" src="urfidMisc.js"></script>
+        <script type="text/javascript" src="urfidInvent.js"></script>
+<!--
         <style>
         </style>
         <script type="text/javascript">        
         </script>
+-->
     </head>
     <body class="easyui-layout">
         <div id="banner" data-options="region:'north',border:false" >            
@@ -40,31 +43,33 @@
                 </div>
                 <div title="系统" data-options="iconCls:'icon-home1'">
                     <p>设置参数</p><br/>
-                    <a id="btnClose" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-close',size:'large'"
+                    <a id="btnClose" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-close'"
                         style="width:100%; margin-bottom: 30px;">退出</a>
                 </div>
             </div>
-            <div style="margin-top:80px">
-                <input id="genClock" class="easyui-textbox" data-options="editable:false" style="width:100%;height:60px">
+            <div style="margin-top:60px">
+                <input id="genClock" class="easyui-textbox" data-options="editable:false" style="width:100%" >
             </div>
-        </div>    
+        </div>
             
         <!-- 右侧边栏，控制面板 -->
         <div id="toolsRegion" data-options="region:'east',split:true,title:'控制面板'" style="width:14%; padding:0px;margin:0px">
+            <!-- 写标签功能 -->
             <div id="wrtagTools" class="easyui-panel" title="写标签工具" data-options="closed:true,fit:true"
                     style="width:100%; padding:0px;" >
-                <a id="btnFindTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search',size:'large'"
+                <a id="btnFindTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search'"
                     style="width:100%; margin-bottom: 30px;">查找标签</a>
-                <a id="btnWriteTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-write',size:'large'"
+                <a id="btnWriteTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-write'"
                     style="width:100%; margin-bottom: 30px">写标签</a>
-                <a id="btnKillTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cancel',size:'large'"
+                <a id="btnKillTag" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cancel'"
                     style="width:100%;">标签灭活</a>
             </div>
+            <!-- 点验功能 -->
             <div id="inventTools" class="easyui-panel" data-options="closed:false,fit:true" title="点验工具"
                     style="width:100%; padding:0;" >
                 <div style="width:100%; margin-bottom: 10px">
                     <select id="inventSpeed" class="easyui-combobox" label="速度:" data-options=
-                            "labelPosition:'left',labelAlign:'right', labelWidth:'60px', panelHeight:'auto', editable:false"
+                            "labelPosition:'left',labelAlign:'right', labelWidth:'40px', panelHeight:'auto', editable:false"
                             style="width:100%;">
                         <option value="150">连续</option>
                         <option value="200">200ms</option>
@@ -73,20 +78,17 @@
                     </select>
                 </div>
 
-                <a id="btnInventMode" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-fforward',toggle:true,size:'large'"
+                <a id="btnInventMode" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-fforward',toggle:true"
                     style="width:100%; margin-bottom: 10px">精细扫描</a>
-                <a id="btnInventRun" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search',size:'large'"
+                <a id="btnInventRun" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search'"
                     style="width:100%; margin-bottom: 20px">点验</a>
-                <a id="btnInventNewGrp" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-newdoc',size:'large'"
+                <a id="btnInventNewGrp" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-newdoc'"
                     style="width:100%; margin-bottom: 4px">分组置架</a>
-<!--                <ul id="grptags" class="easyui-datalist" title="书架分组" lines="true" style="width:100%;height:280px"
-                    data-options="lines: true" >
-                </ul>   -->
-                <div id="grptags" class="easyui-datalist" title="书架分组标签" lines="true" style="width:100%;height:400px"
+                <div id="grptags" class="easyui-datalist" title="书架分组标签" lines="true" style="width:100%;height:320px"
                     data-options="rownumbers: true,checkbox: false" >
                 </div>
 
-                <a id="btnInventFinish" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-save',size:'large'"
+                <a id="btnInventFinish" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-save'"
                     style="width:100%; margin-top:4px">完成点验</a>
 
             </div>
@@ -97,9 +99,10 @@
         <!-- 中间栏，主工作区-->
         <div data-options="region:'center'">
             <!-- 1. 写标签界面 -->
-            <div id="wrtagPanel" class="easyui-panel" data-options="closed:true,fit:true" title="标签制作" style="width:100%">
+            <div id="wrtagPanel" class="easyui-panel" data-options="closed:true,fit:true" title="标签制作"
+                style="width:100%; margin: 0px; padding: 0px">
                 <!--条码输入区-->
-                <div id="barcodeInPanel" >
+                <div id="barcodeInPanel" style = "height: 32px">
                     <input id="barcodeInput" class="easyui-textbox" label="条码:" data-options="labelPosition:'left', 
                         labelAlign:'right'" style="width:35%; height: 95%">
                     <input id="barcodeStatus" type="text" style="width:28%;" value="状态提示">
@@ -107,7 +110,8 @@
                         style="width:35%; height:30px; padding:0; ">
                 </div>
                 <!-- 找到的标签 -->
-                <table id="foundtagTab" class="easyui-datagrid" title="电子标签"  fitcolumns="true" style="height:280px; width: 100%"
+                <table id="foundtagTab" class="easyui-datagrid" title="电子标签"  fitcolumns="true"
+                    style="height:180px; width: 100%"
                     data-options="singleSelect:true,rownumbers:false,striped:true,collapsible:false,url:'',method:'get'">
                     <thead>
                         <tr>
@@ -124,15 +128,15 @@
                     </thead>
                 </table>
                 <!--写事件记录 -->
-                <div id="writedSumeInfo">
+                <div id="writedSumeInfo" style = "height: 32px">
                     <input id="writedCount" class="easyui-textbox" label="已写总数:" data-options="labelPosition:'left', 
                         labelWidth:'120px',labelAlign:'right',editable:false" style="width:25%; height: 95%;">
                     <input id="killCount" class="easyui-textbox" label="灭活计数:" data-options="labelPosition:'left',
                         labelWidth:'100px',labelAlign:'right',editable:false" style="width:20%">
                 </div>
                 <table id="wrEventTab" class="easyui-datagrid" title="写录事件表" fitcolumns="true"
-                    style="width: 100%;height:500px" data-options="
-                        singleSelect:true,rownumbers:true, autoRowHeight:false,striped:true,
+                        style="width: 100%; height:340px"
+                        data-options="singleSelect:true,rownumbers:true, autoRowHeight:false,striped:true,
                         pagination:true,pageSize:10,
                         collapsible:true">
                     <thead>
@@ -143,7 +147,7 @@
                         <th data-options="field:'context',width:180">内容(条码)</th>
                         <th data-options="field:'tagserial',width:140">标签序列号</th>
                         <th data-options="field:'epc',width:240">标签号(EPC)</th>
-                        <th data-options="field:'wrUsrBank',width:60, formatter:formatCheckedColumn">UsrBank</th>
+                        <th data-options="field:'wrUsrBank',width:70, formatter:formatCheckedColumn">UsrBank</th>
                         <th data-options="field:'locked',width:50,formatter:formatCheckedColumn">加密</th>
                         </tr>
                     </thead>
@@ -151,26 +155,26 @@
             </div>
             <!--2. 点验界面 -->       
             <div id="inventPanel" class="easyui-panel" data-options="closed:false" title="点验标签" style="width:100%;">
-                <div id="inventInfoPanel" style= "height: 40px; margin-top: 5px;margin-bottom: 5px; font-size: 1.2em">
+                <div id="inventInfoPanel" style= "height: 32px">
                     <input id="inventTagCount" class="easyui-textbox" label="发现标签数:"
                         data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'100px'"
-                        style="width:22%; height: 90%">
+                        style="width:22%; height: 95%">
                     <input id="inventGroupedCount" class="easyui-textbox" label="已上架数:"
                         data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'80px'"
-                        style="width:18%; height: 90%">
+                        style="width:18%; height: 95%">
                     <input id="inventUnFmtTagCount" class="easyui-textbox" label="非标标签数:"
                         data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'100px'"
-                        style="width:18%; height: 90%">
+                        style="width:18%; height: 95%">
                     <input id="inventCrosGrpCount" class="easyui-textbox" label="非当前组:"
                          data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'80px'"
-                         style="width:18%; height: 90%">
+                         style="width:18%; height: 95%">
                     <input id="inventRunCount" class="easyui-textbox" label="扫描:"
                         data-options="editable:false, labelPosition:'left', labelAlign:'right',labelWidth:'60px'"
-                        style="width:22%; height: 90%">
+                        style="width:20%; height: 95%">
                 </div>
                 <div>
                     <table id="inventTab" class="easyui-datagrid" title="发现标签表(当前分组)" fitcolumns="true"
-                        style="width: 100%;height:760px"
+                        style="width: 100%;height:556px"
                         data-options="singleSelect:true,rownumbers:true,collapsible:true, autoRowHeight:false,striped:true,
                                 pagination:true, pageSize:20">
                         <thead>
@@ -198,7 +202,7 @@
                 <!-- 两个表格，tab分页 -->
                 <div id="dbTableSelect" class="easyui-tabs" >
                     <div title="点验记录" style="padding:0px">
-                        <table id="inventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:400px"
+                        <table id="inventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:300px"
                             data-options="singleSelect:true,rownumbers:false,collapsible:true,striped:true,
                                 pagination:true,pageSize:10,
                                 url:'',method:'get'">
@@ -217,7 +221,7 @@
                         </table>
                     </div>
                     <div title="标签制作记录" style="padding:0px;">
-                        <table id="wrEventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:400px"
+                        <table id="wrEventDb" class="easyui-datagrid" fitcolumns="true" style="width: 100%; height:300px"
                             data-options="singleSelect:true,rownumbers:false,collapsible:true,striped:true,
                                     pagination:true,pageSize:10,
                                     url:'',method:'get'">
@@ -244,21 +248,21 @@
                     <input id="dbExportMarkSel" class="easyui-switchbutton" checked style="width:150px;"
                         data-options="onText:'未导出数据',offText:'全部数据'" > 
                 </div>
-                <div style="margin-top: 8px; margin-bottom: 10px">
-                    <div class="easyui-panel" title="导出数据" style="width:100%;padding:10px 10px;">
+                <div style="margin-top: 5px; margin-bottom: 0px">
+                    <div class="easyui-panel" title="导出数据" style="width:100%;padding:5px 5px;">
                         <span> 每天应该导出当天的作业数据，使计数值清零 </span> <br/>
                         <input id="exportTofile" class="easyui-textbox" label="文件名:" data-options="labelPosition:'left',
-                            labelAlign:'right', buttonText:'导出到文件',buttonIcon:'icon-copycli'" style="width:70%; height:36px;">
+                            labelAlign:'right', buttonText:'导出到文件',buttonIcon:'icon-copycli'" style="width:70%; height:32px;">
                     </div>
-                    <div class="easyui-panel" title="文件管理" style="width:100%; padding:10px 10px;">
-                        <input id="uploadfiles" class="easyui-filebox" style="width:59%;height:36px;margin-bottom:10px"
+                    <div class="easyui-panel" title="文件管理" style="width:100%; padding:2px 2px;">
+                        <input id="uploadfiles" class="easyui-filebox" style="width:59%;height:32px;margin-bottom:2px"
                                 multiple accept="text/plain" data-options="prompt:'选择文件...',buttonAlign:'left',
                                 buttonText:'上传文件',buttonIcon:'icon-redo'">
                         <br/>
                         <a id="fileCopy2Sd" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-save'"
-                                style="width:25%;height:36px; margin-top:10px; margin-bottom:10px;">复制文件到U盘/SD卡</a>
+                                style="width:25%;height:32px; margin-top:2px; margin-bottom:2px;">复制文件到U盘/SD卡</a>
                         <a id="fileDelete" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-cut'"
-                                style="width:25%;height:36px;">删除文件</a><br/>
+                                style="width:25%;height:32px;">删除文件</a><br/>
 
                     </div>
 

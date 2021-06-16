@@ -3,6 +3,9 @@
   *
   */
 //全局变量
+window.channel = null;
+window.devwrapper = null;       //这个先于qwebchannel初始化，界面初始化时qwebchannel未打开，有必要用这个判断
+
 var mWritedCount = 0;
 var hotWriteObj = {
     barcode: "",
@@ -13,14 +16,12 @@ var hotWriteObj = {
     barcodeRepeat:false
 };
 
-window.channel = null;
-window.devwrapper = null;       //这个先于qwebchannel初始化，界面初始化时qwebchannel未打开，有必要用这个判断
-
 var isInventMode = true;
 var barcodeNewline = false, scanRuning = false, inventRuning = false;
 
 var wrEventBuf = [];
 
+/*
 var m_InventRecBuf = [];            //点验，接收-显示缓存
 var m_inventGrps = [];              //已上架标签缓存，只保留条码。动态变长，发送后清除
 var m_hotInventGrpId = 0;           //当前分组（书架）索引
@@ -32,6 +33,8 @@ var inventCounter = {
     frameTags: 0,               //发现的书架标签数
     crossGrpCount: 0            //误读已分组上架标签次数
 }
+*/
+
 
 var m_locfile_mediaPath = "";
 var m_setting;
@@ -39,15 +42,16 @@ var m_setting;
 //界面初始化。等效于放在$(document).ready((function()  {    }) 中
 $(function initViews()  {
     //左边栏
-    $("#functionMenu").accordion({ onSelect: functionsMain    });
-    $("#genClock").textbox('textbox').css({fontSize: "2.0em", fontWeight:"bold",
-                    color:"blue", textAlign:'center'});
+//    $("#functionMenu").accordion({ onSelect: functionsMain    });
+/*    $("#genClock").textbox('textbox').css({fontSize: "2.0em", fontWeight:"bold",
+                    color:"blue", textAlign:'center', backgroundColor: 'rgb(122,155,220)' });
+*/
 
     //条码输入框，设置不能用css配置的style
-    $("#barcodeInput").textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"});
+/*    $("#barcodeInput").textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"}); */
     $("#barcodeInput").textbox('textbox').bind('keydown', onBarcodeInput);      //event连接。jquery执行环境
 
-    //条码-标签状态提示框。这是普通input，easyui的textbox不能去掉边框。基本style用css设置，readonly只能用jQuery设置
+   //条码-标签状态提示框。是普通input。style用css设置，readonly用jQuery设置
     $("#barcodeStatus").attr("readonly", true);
     $("#barcodeStatus").val("");
     $("#barcodeStatus").focus(function() {                  //调整成不能获得焦点的模式
@@ -55,8 +59,8 @@ $(function initViews()  {
     });
 
     //当前选择&写的标签号。只读
-    $("#usingTag").textbox('textbox').css("fontSize", "1.2em");
-    $("#usingTag").textbox('textbox').css("backgroundColor", "rgb(225, 231, 206)");
+/*    $("#usingTag").textbox('textbox').css("fontSize", "1.2em");
+    $("#usingTag").textbox('textbox').css("backgroundColor", "rgb(225, 231, 206)"); */
     $("#usingTag").textbox('textbox').focus(function()  {
         $("#barcodeInput").textbox('textbox').focus();
     });
@@ -82,14 +86,14 @@ $(function initViews()  {
         }
     });      
     //写标签计数, 灭活计数
-    $("#writedCount").textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"});
+/*    $("#writedCount").textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"}); */
     $("#writedCount").textbox('textbox').focus(function()  {
         $("#barcodeInput").textbox('textbox').focus();
     });
-    $("#killCount").textbox('textbox').css({fontSize: "20pt", fontWeight:"bold",color:"black"});
+/*    $("#killCount").textbox('textbox').css({fontSize: "20pt", fontWeight:"bold",color:"black"}); */
     //写入事件记录表格
     $("#wrEventTab").datagrid({loadFilter: pagerFilter});
-    $("#wrEventTab").datagrid('getPager').css({height:"40px"});
+/*    $("#wrEventTab").datagrid('getPager').css({height:"40px"}); */
 
     //工具栏按钮
     $("#btnFindTag").bind('click', runFindTag);
@@ -102,24 +106,28 @@ $(function initViews()  {
 
     //--- 点验 ---
     //计数显示
-    $("#inventTagCount, #inventRunCount").each(function()   {
+/*    $("#inventTagCount, #inventRunCount").each(function()   {
         $(this).textbox('textbox').css({fontSize: "1.8em", fontWeight:"bold",color:"blue"});
     });
+
     $("#inventUnFmtTagCount, #inventGroupedCount,#inventCrosGrpCount").each(function()   {
         $(this).textbox('textbox').css({fontSize: "1.5em", fontWeight:"bold",color:"black"});
     });
+*/
 
     //点验表格
-    $("#inventTab").datagrid({
+/*    $("#inventTab").datagrid({
         loadFilter: pagerFilter,
         onSelect:function() {       //附加工作，锁住分组表格的下select光标
             $("#grptags").datalist('selectRow', m_hotInventGrpId);
         }
     });
-    $("#inventTab").datagrid('getPager').css({height:"40px"});
+    */
+/*    $("#inventTab").datagrid('getPager').css({height:"40px"});    */
+
     //扫描速度选择框
-    $("#inventSpeed").combo('textbox').css({fontSize: "1.2em"});
-    $("#inventSpeed").combobox({
+/*    $("#inventSpeed").combo('textbox').css({fontSize: "1.2em"});  */
+/*    $("#inventSpeed").combobox({
         onSelect:function(rec) {
             if (devwrapper !== null)    {
                 devwrapper.setInventScanPeriod(rec.value);
@@ -137,6 +145,7 @@ $(function initViews()  {
             }
         }
     });
+    $("#btnInventMode").linkbutton("disable");
     $("#btnInventNewGrp").linkbutton({
         onClick: function() {
             if (devwrapper !== null && !inventRuning)  {
@@ -149,8 +158,9 @@ $(function initViews()  {
         disabled: true,
         onClick: doInventFinish
     });
+*/
 
-
+/*
     // --- 数据管理 ---
     $("#inventDb").datagrid({loadFilter: pagerQueryDb});
     $("#wrEventDb").datagrid({loadFilter: pagerQueryDb});
@@ -259,14 +269,15 @@ $(function initViews()  {
             }
         }
     });
+*/
 
-    //全部datagrid的分页布置
+/*    //全部datagrid的分页布置
     $("#wrEventTab, #inventTab, #wrEventDb, #inventDb").each(function()    {
         $(this).datagrid('getPager').pagination({
             layout: ['sep','first','prev','links','next','last','sep','refresh','info']
         });
     });
-
+*/
     //页面载入，设置焦点
     $("#barcodeInput").next('span').find('input').focus();
 });
@@ -284,12 +295,14 @@ $(function()    {
                 $("#btnFindTag").linkbutton("disable");
                 $("#btnInventRun").linkbutton("disable");
             }
-            inventCounter.foundTags = devwrapper.inventTagNumber;
+
+            onInventDevStart();
+/*            inventCounter.foundTags = devwrapper.inventTagNumber;
             $("#inventTagCount").textbox('setValue', inventCounter.foundTags);
 
             devwrapper.getInventScanPeriod(function(val)  {
                 $("#inventSpeed").combobox('select', val);
-            });
+            }); */
         });
         devwrapper.writedCountChanged.connect(function()    {
             mWritedCount = devwrapper.writedCount;
@@ -307,7 +320,9 @@ $(function()    {
         devwrapper.findTagTick.connect(onfindTagTick);
         devwrapper.findTagUpdate.connect(onfindTagUpdate);
         //点验功能
-        devwrapper.inventScanChanged.connect(function() {
+        inventDevEventLink();
+
+/*        devwrapper.inventScanChanged.connect(function() {
             $("#inventRunCount").textbox('setValue', devwrapper.inventScanCount);
             inventCounter.foundTags = devwrapper.inventTagNumber;
             inventCounter.contextValidTags = devwrapper.inventFmtTagNumber;
@@ -327,9 +342,10 @@ $(function()    {
             $("#btnInventMode").linkbutton("enable");
         });
         devwrapper.inventTagUpdate.connect(onInventTagUpdate);
-
+*/
+        miscDevEventLink();
         //一般配置，读出
-        devwrapper.getSysConfigs(function(res) {
+/*        devwrapper.getSysConfigs(function(res) {
             $('#configSettings').propertygrid('loadData', res);
         });
         //IP输入框
@@ -352,9 +368,11 @@ $(function()    {
                 }
             }
         })
+*/
     });
 });
 
+/*
 var mnuContextPanel, mnuToolPanel;
 //应用页切换
 function functionsMain(title, index)    {
@@ -441,6 +459,7 @@ function functionsMain(title, index)    {
         }
     }
 }
+*/
 
 function clearWrTagPanel()  {
     $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
@@ -457,6 +476,8 @@ function clearWrTagPanel()  {
     hotWriteObj.poolId = -1;    
 }
 
+
+/*
 function clearInventPanel() {
     m_InventRecBuf.splice(0, m_InventRecBuf.length);
     m_inventGrps.splice(0, m_inventGrps.length);
@@ -478,6 +499,7 @@ function clearInventPanel() {
 
     $("#grptags").datalist('loadData', {total:0, rows:[]});
 }
+*/
 
 //---------------------- 写标签功能 ---------------------------------------------
 //扫描枪输入
@@ -563,6 +585,7 @@ function runFindTag() {
                 $("#btnFindTag").linkbutton({"text": "查找标签"});
                 $("#usingTag").textbox('setValue', '');
                 $("#barcodeStatus").val("等待标签");
+                $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
             }
         });
     }
@@ -689,6 +712,7 @@ function writeTag()   {
             //条码输入界面刷新
             $("#usingTag").textbox('setValue', '['+hotWriteObj.barcode+']');
             $("#barcodeInput").textbox('setValue', "");     //效果不好，但必须
+            $("#barcodeInput").textbox('textbox').focus();
             hotWriteObj.poolId = -1;
             hotWriteObj.epc = "";
             hotWriteObj.barcode = "";       //
@@ -802,7 +826,9 @@ function updateWritedRecord(joRes, isKill)   {
         $("#wrEventTab").datagrid('selectRow', (rowid % pagesize));     //光标。selectRow的行id是base-0的        
     }
 }
+
 //---------------------- 点验功能 ---------------------------------------------
+/*
 var inventPrepare = false;
 function runInvent()    {
     if (devwrapper === null)
@@ -870,12 +896,16 @@ function onInventTagUpdate(jo)  {
         }
         return;
     }   else    {           //普通标签
-        if (jo.formatId ===0)
+        if (jo.formatId ===0)   {
             rec.formatId = "标准";
-        else if (jo.formatId < 0)
+        }   else if (jo.formatId < 0)   {
             rec.formatId = "空白";
-        else
+        }   else    {
             rec.formatId = "兼容格式"+ jo.formatId;
+        }
+        if (jo.modversion !== undefined)    {
+            rec.formatId += ("/"+(parseInt(jo.modversion)+1));
+        }
     }
 
     if (jo.groupId !== m_hotInventGrpId)    {           //其他分组
@@ -894,14 +924,13 @@ function onInventTagUpdate(jo)  {
             rec.context = "";
         rec.title = jo.title;
         if (jo.securityBit !== undefined)   {
-            rec.securityBit = (jo.securityBit !==0);
+            rec.securityBit = (parseInt(jo.securityBit) !==0);
         }
     }   else    {               //重复发现
         //在有推入分组m_inventGrps[]和分离书架标签的情况下，jo.id与m_InventRecBuf[]缓存数组索引的关系被打乱，只能硬搜索
         try {
             m_InventRecBuf.forEach(function(row, rid)   {
                 if (row.id === jo.id)   {
-//                if (row.id === jo.id && row.epc ===jo.epc)   {
                     rowid = rid;
                     throw new Error("EndInterative");   //break forEach
                 }
@@ -975,9 +1004,6 @@ function inventNewGroup(saveHotOnly)   {
             row:{text: usedGrpTag, value: m_hotInventGrpId+1    }});
         m_hotInventGrpId++;     //开启新分组
     }
-/*    if (saveHotOnly)
-        return;
-*/
     //开启新分组：分组（书架标签）表增加行并选择
     if (grprows.length <=m_hotInventGrpId)   {
         $("#grptags").datalist('appendRow',{text:'-未指定标签', value: (m_hotInventGrpId+1)});
@@ -1113,3 +1139,4 @@ function doInventFinish()   {
     }
     return(true);
 }
+*/

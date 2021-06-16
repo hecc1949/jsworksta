@@ -21,13 +21,15 @@
             "oid" : 111,
             "bits" : 1,
             "name_c" : "安全位",
-            "name_e" : "Security"
-        },
+            "name_e" : "Security",
+	    "default" : 1
+	},
         {
             "oid" : 112,
             "bits" : 2,
             "name_c" : "预留位",
-            "name_e" : "Reserved Bit"
+            "name_e" : "Reserved Bit",
+            "default" : 0
         },
         {
             "oid" : 113,

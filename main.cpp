@@ -96,6 +96,9 @@ int main(int argc, char *argv[])
     QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));   //locale设置
     qputenv("QT_IM_MODULE",QByteArray("Qt5Input"));
 //    qputenv("QTWEBENGINE_REMOTE_DEBUGGING", "9223");
+#ifdef ARM
+    qputenv("QTWEBENGINE_CHROMIUM_FLAGS",QByteArray("--disable-gpu"));
+#endif
 
     QApplication a(argc, argv);
     QStringList arguments = QCoreApplication::arguments();

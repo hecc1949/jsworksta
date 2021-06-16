@@ -7,5 +7,7 @@
         <file>res/process-stop.png</file>
         <file>res/view-refresh.png</file>
         <file>res/list_bullets_48px.png</file>
+        <file>res/go-next.png</file>
+        <file>res/go-previous.png</file>
     </qresource>
 </RCC>

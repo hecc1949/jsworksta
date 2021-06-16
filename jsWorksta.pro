@@ -30,8 +30,8 @@ else    {
     LIBS += -L$$PWD/../urfidLib-build-pc -lurfid
 }
 
-usrhtml.files = URfidwritor.html urfidwr.js urfidwr.css
-usrhtml.files += easyui-lang-zh_CN.js utils.js
+usrhtml.files = URfidwritor.html urfidwr.js urfidView.css
+usrhtml.files += easyui-lang-zh_CN.js utils.js urfidMisc.js urfidInvent.js
 usrhtml.files += jquery.easyui.min.js jquery.min.js easyui.css icon.css
 INSTALLS += usrhtml
 
@@ -89,5 +89,7 @@ DISTFILES += \
     icon.css \
     bookUItems.json \
     EpcDefItems.json \
-    banksConfig.json
+    banksConfig.json \
+    urfidInvent.js \
+    urfidMisc.js
 

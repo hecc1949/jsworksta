@@ -16,6 +16,8 @@ URfidWrapper::URfidWrapper(QObject *parent) : QObject(parent),
     qRegisterMetaType<InventifyRecord_t>("InventifyRecord_t");
 
     wrProxy.srcdatFmt = &srcformat;
+    invent.srcdatFmt = &srcformat;
+
 }
 
 URfidWrapper::~URfidWrapper()
@@ -40,22 +42,18 @@ void URfidWrapper::setMiscMessage(QString msg, int level)
 void URfidWrapper::dev_cmdResponse(QString info, int cmd, int status)      //slot
 {
     QString s1 = wrProxy.rfidDev->packDumpInfo(0, info, cmd, status);
-//    setMiscMessage(s1, 0);
     if (s1 == info)
     {
         setMiscMessage(s1, 0);
-//        qDebug()<<info.toLatin1();
     }
 }
 
 void URfidWrapper::dev_errMsg(QString info, int errCode)       //slot
 {
     QString s1 = wrProxy.rfidDev->packDumpInfo(1, info, errCode, 0);
-//    setMiscMessage(s1, 1);
     if (s1 ==info)
     {
         setMiscMessage(s1, 1);
-//        qDebug()<<info;
     }
 }
 
@@ -555,6 +553,7 @@ void URfidWrapper::onInventUpdate(QByteArray epc, InventifyRecord_t* pRec, bool 
     }
     jo["hitTime"] = s1;
     jo["formatId"] = pRec->formatId;    //
+    jo["modversion"] = pRec->modeVersion;
     jo["groupId"] = pRec->groupIdA;
     jo["context"] = QString::fromLatin1(pRec->identifier);
     if (!isNew)
@@ -566,15 +565,10 @@ void URfidWrapper::onInventUpdate(QByteArray epc, InventifyRecord_t* pRec, bool 
     //
 //    jo["context"] = QString::fromLatin1(pRec->identifier);
     jo["title"] ="";            //书名，待扩展
-/*    if (pRec->formatId ==0)
-        s1 = "标准";
-    else
-        s1 = srcformat.getFormatTitle(pRec->formatId);
-    jo["formatId"] = s1;
-*/
     if (pRec->formatId >=0)
+    {
         jo["securityBit"] = QString::number(pRec->securityBit);
-//    jo["groupId"] = pRec->groupIdA;
+    }
     emit(inventTagUpdate(jo));
 }
 

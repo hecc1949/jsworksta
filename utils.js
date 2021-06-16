@@ -51,10 +51,12 @@ function convertUtcTime(utcTime)  {
 
 //通用子函数：在datagrid中构建checkedbox表示的列项
 function formatCheckedColumn(val, rowDat, rowIndex) {
-    if (val)    {
-        return '<input type="checkbox" name="DataGridCheckbox" checked="checked" onclick="return false">';
-    }
-    else {
+    if (val !== undefined)    {
+        if (val)
+            return '<input type="checkbox" name="DataGridCheckbox" checked="checked" onclick="return false">';
+        else
+            return '<input type="checkbox" name="DataGridCheckbox" onclick="return false">';
+    }    else {
         return '<input type="checkbox" name="DataGridCheckbox" disabled="disabled" >';
     }
 }
