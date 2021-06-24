@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.6.2, 2021-06-16T17:58:40. -->
+<!-- Written by QtCreator 4.6.2, 2021-06-24T10:06:03. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -556,31 +556,31 @@
       <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
       <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">RemoteLinux.DirectUploadStep</value>
       <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedFiles">
-       <value type="QString">/root/QtProjs/jsWorksta/easyui.css</value>
-       <value type="QString">/root/QtProjs/jsWorksta/easyui.css</value>
-       <value type="QString">/root/QtProjs/jsWorksta/urfidMisc.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/urfidwr.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/easyui-clientpager.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/URfidwritor.html</value>
-       <value type="QString">/root/QtProjs/jsWorksta/easyui-lang-zh_CN.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/easyui-lang-zh_CN.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/icon.css</value>
-       <value type="QString">/root/QtProjs/jsWorksta/jquery.easyui.min.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/urfidwr.css</value>
        <value type="QString">/root/QtProjs/jsWorksta/urfidView.css</value>
-       <value type="QString">/root/QtProjs/jsWorksta/icon.css</value>
-       <value type="QString">/root/QtProjs/jsWorksta-build-arm/jsWorksta</value>
-       <value type="QString">/root/QtProjs/jsWorksta/jquery.min.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/jquery.easyui.min.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/jquery.min.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/urfidwr.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/utils.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta/utils.js</value>
-       <value type="QString">/root/QtProjs/jsWorksta-build-arm/jsWorksta</value>
        <value type="QString">/root/QtProjs/jsWorksta/URfidwritor.html</value>
        <value type="QString">/root/QtProjs/jsWorksta/urfidInvent.js</value>
-       <value type="QString">/root/QtProjs/jsworksta/jsWorksta-build-arm/jsWorksta</value>
+       <value type="QString">/root/QtProjs/jsWorksta/easyui.css</value>
+       <value type="QString">/root/QtProjs/jsWorksta/jquery.min.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/urfidMisc.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/easyui-lang-zh_CN.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/jquery.easyui.min.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/jquery.min.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta-build-arm/jsWorksta</value>
+       <value type="QString">/root/QtProjs/jsWorksta/jquery.easyui.min.js</value>
        <value type="QString">/root/QtProjs/jsWorksta/urfidwr.css</value>
+       <value type="QString">/root/QtProjs/jsworksta/jsWorksta-build-arm/jsWorksta</value>
+       <value type="QString">/root/QtProjs/jsWorksta/urfidwr.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/icon.css</value>
+       <value type="QString">/root/QtProjs/jsWorksta/easyui.css</value>
+       <value type="QString">/root/QtProjs/jsWorksta/urfidwr.css</value>
+       <value type="QString">/root/QtProjs/jsWorksta/easyui-clientpager.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/easyui-lang-zh_CN.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/utils.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta/URfidwritor.html</value>
+       <value type="QString">/root/QtProjs/jsWorksta/icon.css</value>
+       <value type="QString">/root/QtProjs/jsWorksta/utils.js</value>
+       <value type="QString">/root/QtProjs/jsWorksta-build-arm/jsWorksta</value>
+       <value type="QString">/root/QtProjs/jsWorksta/urfidwr.js</value>
       </valuelist>
       <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedHosts">
        <value type="QString">192.168.1.11</value>
@@ -637,58 +637,58 @@
        <value type="QString">/usr/jsworksta</value>
       </valuelist>
       <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedSysroots">
-       <value type="QString"></value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
        <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
        <value type="QString"></value>
        <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
        <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
        <value type="QString"></value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString"></value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString"></value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString"></value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
+       <value type="QString"></value>
+       <value type="QString"></value>
        <value type="QString"></value>
        <value type="QString"></value>
        <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
        <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
        <value type="QString"></value>
        <value type="QString"></value>
        <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString"></value>
-       <value type="QString"></value>
-       <value type="QString"></value>
-       <value type="QString">/opt/arm4418/arm-4418-linux-gnueabi/sysroot</value>
-       <value type="QString"></value>
        <value type="QString"></value>
       </valuelist>
       <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedTimes">
-       <value type="QDateTime">2020-10-05T10:59:56</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
        <value type="QDateTime">2021-06-16T17:56:01</value>
-       <value type="QDateTime">2021-06-16T17:56:01</value>
-       <value type="QDateTime">2020-09-25T16:14:57</value>
-       <value type="QDateTime">2021-06-16T17:56:01</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2020-09-24T11:08:20</value>
-       <value type="QDateTime">2020-10-26T10:32:38</value>
-       <value type="QDateTime">2020-08-29T11:03:09</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2021-06-16T17:56:01</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2020-08-29T11:03:09</value>
-       <value type="QDateTime">2021-01-09T11:57:53</value>
-       <value type="QDateTime">2021-06-10T18:15:07</value>
-       <value type="QDateTime">2021-01-09T11:04:04</value>
-       <value type="QDateTime">2021-01-09T11:42:11</value>
        <value type="QDateTime">2020-11-25T09:41:02</value>
-       <value type="QDateTime">2021-06-16T17:56:01</value>
+       <value type="QDateTime">2021-06-21T10:17:58</value>
+       <value type="QDateTime">2021-06-10T18:15:07</value>
+       <value type="QDateTime">2020-08-29T11:03:09</value>
+       <value type="QDateTime">2021-06-24T10:04:35</value>
+       <value type="QDateTime">2021-06-10T18:15:07</value>
+       <value type="QDateTime">2020-08-29T11:03:09</value>
+       <value type="QDateTime">2021-06-10T18:15:07</value>
+       <value type="QDateTime">2021-01-09T11:42:11</value>
+       <value type="QDateTime">2021-06-10T18:15:07</value>
+       <value type="QDateTime">2021-06-10T18:15:07</value>
        <value type="QDateTime">2020-07-29T17:24:37</value>
+       <value type="QDateTime">2021-06-24T10:04:35</value>
+       <value type="QDateTime">2021-06-10T18:15:07</value>
+       <value type="QDateTime">2020-10-05T10:59:56</value>
        <value type="QDateTime">2020-12-20T11:51:32</value>
+       <value type="QDateTime">2020-09-25T16:14:57</value>
+       <value type="QDateTime">2020-09-24T11:08:20</value>
+       <value type="QDateTime">2021-06-24T10:04:35</value>
+       <value type="QDateTime">2021-06-21T17:24:44</value>
+       <value type="QDateTime">2020-10-26T10:32:38</value>
+       <value type="QDateTime">2021-01-09T11:04:04</value>
+       <value type="QDateTime">2021-06-24T10:04:36</value>
+       <value type="QDateTime">2021-01-09T11:57:53</value>
       </valuelist>
       <value type="bool" key="RemoteLinux.GenericDirectUploadStep.IgnoreMissingFiles">false</value>
       <value type="bool" key="RemoteLinux.GenericDirectUploadStep.Incremental">true</value>

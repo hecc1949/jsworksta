@@ -58,7 +58,8 @@ SOURCES += \
     navitoolbar.cpp \
     websinglepageview.cpp \
     urfidwrapper.cpp \
-    networkchecker.cpp
+    networkchecker.cpp \
+    urfidAux.cpp
 
 HEADERS += \
         containerwindow.h \

@@ -18,12 +18,6 @@
         <script type="text/javascript" src="urfidwr.js"></script>
         <script type="text/javascript" src="urfidMisc.js"></script>
         <script type="text/javascript" src="urfidInvent.js"></script>
-<!--
-        <style>
-        </style>
-        <script type="text/javascript">        
-        </script>
--->
     </head>
     <body class="easyui-layout">
         <div id="banner" data-options="region:'north',border:false" >            
@@ -118,9 +112,9 @@
                         <th data-options="field:'itemid',width:50">ID</th>
                         <th data-options="field:'epc',width:250">标签号(EPC)</th>
                         <th data-options="field:'context',width:180">内容(条码)</th>
-                        <th data-options="field:'format',width:65">格式</th>
+                        <th data-options="field:'format',width:70">格式</th>
                         <th data-options="field:'epcBits',width:50">容量</th>
-                        <th data-options="field:'tagserial',width:140">标签序列号</th>
+                        <th data-options="field:'tagserial',width:160">标签序列号</th>
                         <th data-options="field:'usingmode',width:80">状态</th>
                         <th data-options="field:'hitCount',width:50">计数</th>
                         <th data-options="field:'passwd',width:160">密码</th>
@@ -174,7 +168,7 @@
                 </div>
                 <div>
                     <table id="inventTab" class="easyui-datagrid" title="发现标签表(当前分组)" fitcolumns="true"
-                        style="width: 100%;height:556px"
+                        style="width: 100%;height:536px"
                         data-options="singleSelect:true,rownumbers:true,collapsible:true, autoRowHeight:false,striped:true,
                                 pagination:true, pageSize:20">
                         <thead>
@@ -193,7 +187,7 @@
                     </table>    
                 </div>
                 <div>
-                    <label id="inventMsgLabel" style="font-size: 1.2em"></label>
+                    <label id="inventMsgLabel" style="font-size: 1.0em"></label>
                 </div>
 
             </div>

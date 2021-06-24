@@ -14,6 +14,8 @@ var inventCounter = {
     crossGrpCount: 0            //误读已分组上架标签次数
 }
 
+var _view2deviceDis = true;    //界面参数人工更改时，不update到设备。避免inventSpeed选择时，从设备读参数再更改回设备的loop.
+
 //--------- views ---
 $(function initInventViews()   {
     $("#inventTab").datagrid({
@@ -26,23 +28,32 @@ $(function initInventViews()   {
     //扫描速度选择框
     $("#inventSpeed").combobox({
         onSelect:function(rec) {
-            if (devwrapper !== null)    {
+/*            if (devwrapper !== null)    {
                 devwrapper.setInventScanPeriod(rec.value);
+            } */
+            if (!_view2deviceDis)   {
+//            console.log("period select"+JSON.stringify(rec));
+                doDevCommand("inventSetScanPeriod",[rec.value]);
             }
         }
     });
 
     //点验执行
     $("#btnInventRun").bind('click', runInvent);
+
+    $("#btnInventMode").linkbutton("disable");
     $("#btnInventMode").linkbutton({
         onClick: function() {
-            if (devwrapper !== null)    {
+/*            if (devwrapper !== null)    {
                 $("#btnInventMode").linkbutton("disable");
                 devwrapper.toggleInventMode();
-            }
+            } */
+            doDevCommand("inventToggleMode",[], function(jores)  {
+                $("#btnInventMode").linkbutton("disable");
+            });
         }
     });
-    $("#btnInventMode").linkbutton("disable");
+
     $("#btnInventNewGrp").linkbutton({
         onClick: function() {
             if (devwrapper !== null && !inventRuning)  {
@@ -57,6 +68,7 @@ $(function initInventViews()   {
 });
 
 //------------ dev-events ---
+/*
 function inventDevEventLink()  {
     devwrapper.inventScanChanged.connect(function() {
         $("#inventRunCount").textbox('setValue', devwrapper.inventScanCount);
@@ -79,13 +91,45 @@ function inventDevEventLink()  {
     });
     devwrapper.inventTagUpdate.connect(onInventTagUpdate);
 }
+*/
+
+function onInventDevMsg(jo) {
+//    console.log(JSON.stringify(jo));
+    if (jo.scanMultiHit !== undefined)  {
+        if (jo.scanMultiHit !== 0)   {
+            $("#btnInventMode").linkbutton({"text":"普通扫描"});
+        }   else    {
+            $("#btnInventMode").linkbutton({"text":"精细扫描"});
+        }
+        $("#btnInventMode").linkbutton("enable");
+    }
+    if (jo.scanTick !== undefined)  {
+        $("#inventRunCount").textbox('setValue', jo.scanTick);
+    }
+    if (jo.inventTagNumber !== undefined || jo.inventFmtTagNumber !== undefined)   {
+        inventCounter.foundTags = jo.inventTagNumber;
+        inventCounter.contextValidTags = jo.inventFmtTagNumber;
+
+        $("#inventTagCount").textbox('setValue', inventCounter.foundTags);
+        var cnt1 = inventCounter.foundTags - inventCounter.contextValidTags + inventCounter.frameTags;
+        $("#inventUnFmtTagCount").textbox('setValue', cnt1);
+    }
+}
+
 
 function onInventDevStart()     {
-    inventCounter.foundTags = devwrapper.inventTagNumber;
-    $("#inventTagCount").textbox('setValue', inventCounter.foundTags);
+//    inventCounter.foundTags = devwrapper.inventTagNumber;
+//    $("#inventTagCount").textbox('setValue', inventCounter.foundTags);
 
-    devwrapper.getInventScanPeriod(function(val)  {
+//    devwrapper.getInventScanPeriod(function(val)  {
+//        $("#inventSpeed").combobox('select', val);
+//    });
+    doDevCommand("inventGetScanPeriod",[], function(joRes)  {
+//        console.log(JSON.stringify(joRes));
+        var val = joRes.data[0].inventScanPeriod;
+        _view2deviceDis = true;
         $("#inventSpeed").combobox('select', val);
+        _view2deviceDis  = false;
     });
 }
 
@@ -97,9 +141,11 @@ function clearInventPanel() {
     for(var key in inventCounter)   {
         inventCounter[key] = 0;
     }
-    if (devwrapper !== null)    {
+/*    if (devwrapper !== null)    {
         devwrapper.inventSetGroupId(m_hotInventGrpId);
     }
+*/
+    doDevCommand("inventSetGroupId",[m_hotInventGrpId]);
 
     $("#inventTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
     $("#inventTab").datagrid('getPager').pagination('select',1);    //清pageNumber
@@ -142,29 +188,40 @@ function runInvent()    {
         if (inventCounter.foundTags>0 && inventCounter.groupedTags===0 && m_InventRecBuf.length===0)    {
             $.messager.confirm('记录数据清空', '有未导出的上次点验数据，是否清空重新开始?', function(r){
                  if (r){
-                     devwrapper.inventResetLet(true);
+//                     devwrapper.inventResetLet(true);
+                     doDevCommand("inventResetLet",[true]);
                  }
              });
             inventPrepare = true;
-            return;
+//#            return;
         }
-        inventPrepare = true;
+//        inventPrepare = true;
     }
 
     var scanmode = 0;   //0-自动切换普通/精细模式，也可手动； 1-普通模式，可手动切换； 2-精细模式，可手动切换
     if ($("#inventSpeed").combobox('getValue') < 200)   {
         scanmode = 2;
     }
-    var startRun = !inventRuning;
-    devwrapper.runInvent(startRun, scanmode, function(res) {
-        if (res)    {
+//    var startRun = !inventRuning;
+//    devwrapper.runInvent(startRun, scanmode, function(res) {
+//        if (res)    {
+    doDevCommand("inventRun",[!inventRuning, scanmode], function(joRes)    {
+        if (joRes.result)   {
+//            console.log(JSON.stringify(joRes));
             //界面显示更新
-            if (startRun)   {
+//            if (startRun)   {
+            if (joRes.data[0].active)   {
                 $("#btnInventRun").linkbutton({"text":"停止"});
-                $("#btnInventMode").linkbutton("enable");
                 $("#btnInventNewGrp").linkbutton("disable");
                 $("#inventSpeed").combobox("disable");
                 $("#btnInventFinish").linkbutton("disable");
+
+                $("#btnInventMode").linkbutton("enable");
+                if (joRes.data[0].scanMultiHit)     {
+                    $("#btnInventMode").linkbutton({"text":"普通扫描"});
+                }   else    {
+                    $("#btnInventMode").linkbutton({"text":"精细扫描"});
+                }
             }
             else {
                 $("#btnInventRun").linkbutton({"text":"点验"});
@@ -173,7 +230,8 @@ function runInvent()    {
                 $("#inventSpeed").combobox("enable");
                 $("#btnInventFinish").linkbutton("enable");
             }
-            inventRuning = startRun;
+            inventRuning = joRes.data[0].active;
+//            inventRuning = startRun;
         }
     });
 }
@@ -314,8 +372,10 @@ function inventNewGroup(saveHotOnly)   {
         $("#grptags").datalist('appendRow',{text:'-未指定标签', value: (m_hotInventGrpId+1)});
     }
     $("#grptags").datalist('selectRow', m_hotInventGrpId);
+
     //与dev端同步。m_hotInventGrpId更改后必须做
-    devwrapper.inventSetGroupId(m_hotInventGrpId);
+//    devwrapper.inventSetGroupId(m_hotInventGrpId);
+    doDevCommand("inventSetGroupId",[m_hotInventGrpId]);
     m_inventCrossGrpCount = 0;
     $("#inventCrosGrpCount").textbox('setValue', 0);
 
@@ -326,7 +386,6 @@ function inventNewGroup(saveHotOnly)   {
         sendHotInventReport();
     }
 }
-
 
 //向服务器上报
 function sendHotInventReport(callback)  {
@@ -366,7 +425,7 @@ function sendHotInventReport(callback)  {
 function inventBuildTxtReport()   {
     if (inventRuning || m_inventGrps.length===0)
         return;
-     var buf = [];           //text行缓存
+    var buf = [];           //text行缓存
     m_inventGrps.forEach(function(grp, id)   {
         var title = "#" + grp.groupNo +" - " +grp.grptag + ",("+ grp.count+")";
         buf.push(title);
@@ -383,8 +442,9 @@ function inventBuildTxtReport()   {
         if (res)    {
             $.messager.alert('导出数据', "未联网上报的数据保存在：<br/>" + filename,'info');
             m_inventGrps.splice(0, m_inventGrps.length);
-            clearInventPanel()
-            devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+            clearInventPanel();
+//            devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+            doDevCommand("inventResetLet",[true]);      //清exportmark, 不导出csv
         }   else    {
             $.messager.alert('导出文件失败', "未联网上报的数据保存文件出错",'error');
         }
@@ -398,7 +458,8 @@ function doInventFinish()   {
         if (inventCounter.foundTags >0) {
             $.messager.confirm('结束点验', '数据已联网上报，清除记录不再导出?', function(r){
                 if (r)  {
-                    devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+//                    devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+                    doDevCommand("inventResetLet",[true]);      //清exportmark, 不导出csv
                 }
             });
         }
@@ -414,14 +475,19 @@ function doInventFinish()   {
                     if (r)
                         inventBuildTxtReport();
                     else    {
-                        return(false);  //
+                        //强行清空
+                        doDevCommand("inventResetLet",[true]);      //清exportmark, 不导出csv
+                        m_inventGrps.splice(0, m_inventGrps.length);
+                        clearInventPanel();
+//                        return(false);  //
                     }
                 });
             }   else    {
                 clearInventPanel();
                 $.messager.confirm('结束点验', '数据已联网上报，清除记录不再导出?', function(r){
                     if (r)
-                        devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+//                        devwrapper.inventResetLet(true);        //不再用导出csv来清exportmark
+                        doDevCommand("inventResetLet",[true]);      //清exportmark, 不导出csv
                 })
             }
         });

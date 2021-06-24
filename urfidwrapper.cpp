@@ -1,11 +1,13 @@
 #include "urfidwrapper.h"
+#include "containerwindow.h"
 #include <QDebug>
 #include <QMainWindow>
 #include <QStatusBar>
-#include "containerwindow.h"
+/*
 #include <QFileDialog>
 #include <QHostInfo>
 #include <QTreeView>
+*/
 
 URfidWrapper::URfidWrapper(QObject *parent) : QObject(parent),
     wrProxy(this), invent(this)
@@ -25,6 +27,333 @@ URfidWrapper::~URfidWrapper()
     invent.rfidDev = NULL;      //欺骗一下invent类，避免重复delete rfidDev
 }
 
+//-----------------------------------------------------------------------------------------
+//      1. webchannel接收命令，与上层接口
+//------------------------------------------------
+
+QJsonObject URfidWrapper::doCommand(QString cmd, QJsonArray param)
+{
+    QJsonObject joRes;
+    bool res;
+    if (cmd == "openURfidWitor")
+    {
+        res = openURfidWritor(param[0].toInt(), param[1].toBool());
+        joRes["result"] = res;
+    }
+    else if (cmd == "selectInventMode")
+    {
+        res = setInventifyMode(param[0].toBool());
+        joRes["result"] = res;
+    }
+    else if (cmd.indexOf("invent")>=0)
+    {
+        joRes = doInventCommand(cmd, param);
+    }
+    else if (cmd.indexOf("tag")>=0)
+    {
+        joRes = doTagwrCommand(cmd, param);
+    }
+    else if (cmd.indexOf("sys")==0)
+    {
+        if (cmd == "sysClose")
+        {
+            sysClose();
+        }
+        else  if (cmd == "sysImeEnable")
+        {
+            emit(setImeEnble(param[0].toBool()));
+        }
+        joRes["result"] = true;
+    }
+    else if (cmd.indexOf("misc")==0)
+    {
+        joRes = doMiscCommand(cmd, param);
+    }
+    return(joRes);
+}
+
+QJsonObject URfidWrapper::doInventCommand(QString cmd, QJsonArray param)
+{
+    QJsonObject joRes;
+    joRes.insert("result", true);
+    bool res = false;
+    if (cmd == "inventRun")
+    {
+        //cmd='inventRun', param[] = [start/stop, scanmode]
+        bool start = false;
+        bool devactive = false;
+        if (param.count()>0)
+            start = param[0].toBool();
+        int scanMultiMode = 0;
+#ifdef ARM
+        int mode = 0;
+        if (param.count()>1)
+            mode = param[1].toString().toInt();
+        if (mode <0 || mode>5 || mode==3)   //可选模式：0-自动, 1-单次命中，2-多次命中， 4-多次，S0，与WriteTag相同
+            mode = 0;
+        res = invent.runInventify(start, mode);     //返回命令是否执行成功
+        if (res && start)
+        {
+            if (mode ==2 || mode==4)
+                scanMultiMode =1;
+        }
+#endif
+        if (res)
+        {
+            devactive = start;     //转换成是否在扫描状态
+        }
+        QJsonArray dat;
+        QJsonObject jo;
+        jo.insert("active", devactive);
+        jo.insert("scanMultiHit", scanMultiMode);        //1- multiHit, 0 -single report
+        dat.append(jo);
+
+        joRes["result"] = res;
+        joRes.insert("data", dat);
+    }
+    else if (cmd == "inventToggleMode")
+    {
+        if (invent.scanRuning && invent.req_chgScanMode==0)
+        {
+            invent.req_chgScanMode = 1;
+            res = true;
+        }
+        joRes["result"] = res;
+    }
+    else if (cmd == "inventResetLet")
+    {
+        bool discard = false;
+        if (param.count()>0)
+            discard = param[0].toBool();
+        if (!invent.scanRuning)
+        {
+            if (discard)
+            {
+                dbstore.markInventsDiscard();
+            }
+            invent.inventClear(!discard);
+            sendInventCounts();
+            res = true;
+        }
+        joRes["result"] = res;
+    }
+    else if (cmd == "inventSetGroupId")
+    {
+        int grpId = 0;
+        if (param.count()>0)
+            grpId = param[0].toString().toInt();
+        if (invent.currentGroupId != grpId)
+        {
+            invent.currentGroupId = grpId;
+        }
+    }
+    else if (cmd == "inventSetScanPeriod")
+    {
+        int time_ms = 100;
+        if (param.count()>0)
+        {
+            //!注意：param可能是数值字符串，如"200"，用QJsonValue的转换param[0].toInt()返回0，错！，要先转成QString.
+            time_ms = param[0].toString().toInt();
+        }
+        if (!invent.scanRuning && time_ms != invent.scanIntfTime)
+        {
+            invent.scanIntfTime = time_ms;
+            invent.ini->setValue("/Invent/scanIntfTime", time_ms);      //随时保存
+            res = true;
+        }
+//        qDebug()<<"set scanPeriod:"<<param<<"value:"<<time_ms;
+        joRes["result"] = res;
+    }
+    else if (cmd == "inventGetScanPeriod")
+    {
+        QJsonArray dat;
+        QJsonObject jo;
+        jo.insert("inventScanPeriod", invent.scanIntfTime);
+        dat.append(jo);
+
+        joRes.insert("data", dat);
+    }
+
+    return(joRes);
+}
+
+QJsonObject URfidWrapper::doTagwrCommand(QString cmd, QJsonArray param)
+{
+    QJsonObject joRes;
+    QJsonObject joDat;
+    if (cmd == "tagFindValid")
+    {
+        bool res = findTagsForWrite(param[0].toBool());
+        joRes["result"] = res;
+    }
+    else if (cmd == "tagWrite")
+    {
+        if (param.count() >=4)
+            joDat  = writeTag(param[0].toInt(), param[1].toString(), param[2].toString(), param[3].toInt());
+        else
+            joDat  = writeTag(param[0].toInt(), param[1].toString(), param[2].toString());
+
+        if (joDat["result"].toInt() >0)
+            joRes["result"] = true;
+        else
+            joRes["result"] = false;
+        QJsonArray dat;
+        dat.append(joDat);
+        joRes.insert("data", dat);
+    }
+    else if (cmd == "tagKill")
+    {
+        joDat = killTag(param[0].toInt());
+
+        if (joDat["result"].toInt() !=0)
+            joRes["result"] = true;
+        else
+            joRes["result"] = false;
+        QJsonArray dat;
+        dat.append(joDat);
+        joRes.insert("data", dat);
+    }
+    else if (cmd == "tagCheckBarcode")
+    {
+        int fmtId = checkBarcodeValid(param[0].toString());
+
+        joRes["result"] = true;
+        QJsonArray dat;
+        joDat.insert("reqTagType", fmtId);
+        dat.append(joDat);
+        joRes.insert("data", dat);
+    }
+    else if (cmd == "tagEpcEncode")
+    {
+        QString epc;
+        if (param.count()>1)
+            epc = epcEncode(param[0].toString(),param[1].toInt());
+        else
+            epc = epcEncode(param[0].toString(), 1);
+
+        joRes["result"] = true;
+        QJsonArray dat;
+        joDat.insert("epc", epc);
+        dat.append(joDat);
+        joRes.insert("data", dat);
+    }
+    return(joRes);
+}
+
+QJsonObject URfidWrapper::doMiscCommand(QString cmd, QJsonArray param)
+{
+    QJsonObject joRes;
+    QJsonArray dat;
+    QJsonObject jo;
+    if (cmd == "miscGetExtMediaPath")
+    {
+        QString s1 = getExtMediaPath();
+        jo.insert("fpath", s1);
+        dat.append(jo);
+        joRes["result"] = (s1.length()>0);
+        joRes.insert("data", dat);
+    }
+    else if (cmd =="miscSelectLocFiles")
+    {
+        if (param.count()>=2)
+        {
+            QString filenames = doSysFileOpenDialog(param[0].toString(), param[1].toString());
+            jo.insert("path", filenames);
+            dat.append(jo);
+            joRes["result"] = (filenames.length()>0);
+            joRes.insert("data", dat);
+        }
+        else
+            joRes["result"] = false;
+    }
+    else if (cmd == "miscRunLocFileCommand")
+    {
+        if (param.count()>=3)
+        {
+            jo = doSysFileCommand(param[0].toString(), param[1].toString(), param[2].toString());
+            dat.append(jo);
+            joRes.insert("data", dat);
+            joRes["result"] = true;
+        }
+        else
+            joRes["result"] = false;
+    }
+    else if (cmd == "miscExecDbSql")
+    {
+        if (param.count()>0)
+        {
+            QString sqlcmd = param[0].toString();
+            QJsonArray param_ar;
+            if (param.count()> 1)
+            {
+                for(int i=1; i<param.count(); i++)
+                    param_ar.append(param[i]);
+            }
+            jo = execDbSql(sqlcmd, param_ar);
+            dat.append(jo);
+            joRes.insert("data", dat);
+            joRes["result"] = true;
+        }
+        else
+            joRes["result"] = false;
+    }
+    else if (cmd == "miscExportDbRecords")
+    {
+        if (param.count() >1)
+        {
+            jo = exportDbRecords(param[0].toString().toInt(), param[1].toString());
+            dat.append(jo);
+            joRes.insert("data", dat);
+            joRes["result"] = true;
+        }
+        else
+            joRes["result"] = false;
+    }
+    else if (cmd == "miscGetSysConfigs")
+    {
+        dat = getSysConfigs();
+        joRes.insert("data", dat);
+        joRes["result"] = (dat.count()>0);
+    }
+    else if (cmd == "miscSetSysConfigs")
+    {
+        int updCnt = setSysConfigs(param);
+        jo.insert("updateCount", updCnt);
+        dat.append(jo);
+        joRes.insert("data", dat);
+        joRes["result"] = true;
+    }
+    else if (cmd == "miscLoadJsonFile")
+    {
+        QByteArray by = loadJsonTextFile(param[0].toString());
+        jo.insert("text", QString(by));
+        dat.append(jo);
+        joRes.insert("data", dat);
+        joRes["result"] = (by.length()>0);
+    }
+    else if (cmd == "miscSaveToJsonFile")
+    {
+        bool res = saveJsonTextFile(QByteArray(param[0].toString().toLatin1()), param[1].toString());
+        joRes["result"] = res;
+    }
+    return(joRes);
+}
+
+void URfidWrapper::sendTagwrRunValue(QJsonObject jo)
+{
+    QJsonObject joRes;
+    joRes["event"] = "tagwrMsg";
+    QJsonArray param;
+    param.append(jo);
+    joRes["param"] = param;
+
+    emit(onDeviceEvent(joRes));
+}
+
+//-----------------------------------------------------------------------------------------
+//      2. 写标签功能
+//------------------------------------------------------------
+
 
 void URfidWrapper::setMiscMessage(QString msg, int level)
 {
@@ -35,8 +364,11 @@ void URfidWrapper::setMiscMessage(QString msg, int level)
     {
         mainwin->statusBar()->showMessage(msg, 5000);
     }
-    emit promptMessageUpdate(level);
-
+//    emit promptMessageUpdate(level);
+    QJsonObject jo;
+    jo.insert("dbMessage", miscMessage);
+    jo.insert("dbMessageLevel", level);
+    sendTagwrRunValue(jo);
 }
 
 void URfidWrapper::dev_cmdResponse(QString info, int cmd, int status)      //slot
@@ -101,7 +433,6 @@ QString URfidWrapper::epcEncode(QString barcode, int barcodeType)
     return(res);
 }
 
-
 bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
 {
     Q_UNUSED(inventMode);
@@ -125,8 +456,10 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
     else
     {
         invent.initInterrogator();      //这里要用到dbstore了
-        if (invent.m_unExportCount >0)
-            emit(inventScanChanged());
+/*        if (invent.m_unExportCount >0)
+            emit(inventScanChanged()); */
+        sendInventCounts();
+
         _inventMode = true;
     }
 
@@ -141,14 +474,20 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
         else
             connect(rfidDev, SIGNAL(tagIdentify(IdentifyEPC_t,int)), &invent, SLOT(onTagIdentified(IdentifyEPC_t,int)),Qt::QueuedConnection);
         connect(&wrProxy, SIGNAL(scanTick(int,int)), this, SLOT(onReadTagTick(int,int)),Qt::QueuedConnection);
+
         connect(&invent, SIGNAL(ScanTickAck(int)), this, SLOT(onInventTickAck(int)), Qt::QueuedConnection);
         connect(&invent, SIGNAL(ChangeScanMode(int)), this, SLOT(onInventChangeMode(int)), Qt::QueuedConnection);
         connect(&invent, SIGNAL(InventUpdate(QByteArray, InventifyRecord_t*, bool)),
                 this, SLOT(onInventUpdate(QByteArray, InventifyRecord_t*, bool)), Qt::QueuedConnection);
     }
     wrProxy.loadRecordsDb();        //不使用dbstore也要空WritedRec, KillRec
-    emit writedCountChanged();
+//    emit writedCountChanged();
     wrProxy.loadJsonConfig();
+
+    QJsonObject jo;
+    jo.insert("writedCount", wrProxy.writeRec.dailyCount);
+    jo.insert("killCount", wrProxy.killAuxRec.dailyCount);
+    sendTagwrRunValue(jo);
 
     QSettings* ini = new QSettings("./config.ini",QSettings::IniFormat);
     QString s1 = ini->value("/Operator/OperatorName").toString();
@@ -167,6 +506,7 @@ bool URfidWrapper::openURfidWritor(int inventMode, bool useLocalDb)
 
 bool URfidWrapper::setInventifyMode(bool inventMode)
 {
+//    qDebug()<<"select inventify mode:"<<inventMode;
     if (_inventMode == inventMode)
         return(true);
     if (rfidDev == NULL)
@@ -180,7 +520,6 @@ bool URfidWrapper::setInventifyMode(bool inventMode)
 
     if (!inventMode)
     {
-//        qDebug()<<"start write tags mode";
         wrProxy.startWritor();
         disconnect(rfidDev, SIGNAL(tagIdentify(IdentifyEPC_t,int)), &invent, SLOT(onTagIdentified(IdentifyEPC_t,int)));
         connect(rfidDev, SIGNAL(tagIdentify(IdentifyEPC_t,int)), this,
@@ -194,7 +533,8 @@ bool URfidWrapper::setInventifyMode(bool inventMode)
                 SLOT(onTagIdentified(IdentifyEPC_t,int)),Qt::QueuedConnection);
 
         if (invent.m_unExportCount !=0) {
-            emit(inventScanChanged());
+//            emit(inventScanChanged());
+            sendInventCounts();
         }
     }
     _inventMode = inventMode;
@@ -248,7 +588,10 @@ void URfidWrapper::onReadTagPoolUpdate(IdentifyEPC_t tagEpc, int infoSerial)   /
             {
                 //自动停止识别
                 wrProxy.identifyRun(false);
-                emit findTagTick(-1);
+//                emit findTagTick(-1);
+                QJsonObject jmsg;
+                jmsg.insert("findTagTick", -1);
+                sendTagwrRunValue(jmsg);
             }
         }
         //
@@ -272,7 +615,13 @@ void URfidWrapper::onReadTagPoolUpdate(IdentifyEPC_t tagEpc, int infoSerial)   /
             }
             jo["fmtId"] = fmtid;
         }
-        emit findTagUpdate(jo);
+//        emit findTagUpdate(jo);
+        QJsonObject joRes;
+        joRes["event"] = "findTagUpdate";
+        QJsonArray param;
+        param.append(jo);
+        joRes["param"] = param;
+        emit(onDeviceEvent(joRes));
     }
 }
 
@@ -285,16 +634,20 @@ void URfidWrapper::onReadTagTick(int count, int updId)      //slot
 {
     if (wrProxy.identifyRuning)
     {
+        QJsonObject jmsg;
         if (count >=50 || reqForWrite)
         {
             wrProxy.identifyRun(false);
             reqForWrite = false;
-            emit findTagTick(-1);
+//            emit findTagTick(-1);
+            jmsg.insert("findTagTick", -1);
         }
         else
         {
-            emit findTagTick(count);
+//            emit findTagTick(count);
+            jmsg.insert("findTagTick", count);
         }
+        sendTagwrRunValue(jmsg);
     }
     //读出了tid-serialNo
     if (updId >=0)
@@ -318,7 +671,13 @@ void URfidWrapper::onReadTagTick(int count, int updId)      //slot
             s1 = QByteArray((const char *)wrProxy.identifyPool.at(updId).killPwd, PASSWD_BYTES).toHex();
             jo["killPwd"] = s1;
         }
-        emit findTagUpdate(jo);
+//        emit findTagUpdate(jo);
+        QJsonObject joRes;
+        joRes["event"] = "findTagUpdate";
+        QJsonArray param;
+        param.append(jo);
+        joRes["param"] = param;
+        emit(onDeviceEvent(joRes));
     }
     //
     if (wrProxy.rfidDev->m_WaitAckTxCount >50)
@@ -327,7 +686,10 @@ void URfidWrapper::onReadTagTick(int count, int updId)      //slot
         if (wrProxy.rfidDev->moduleType == RfidReaderMod::UHF_READER_R200)
         {
             ((Dev_R200 *)(wrProxy.rfidDev))->resetDevice();
-            emit findTagTick(-2);
+//            emit findTagTick(-2);
+            QJsonObject jmsg;
+            jmsg.insert("findTagTick", -2);
+            sendTagwrRunValue(jmsg);
         }
     }
 }
@@ -405,8 +767,13 @@ QJsonObject URfidWrapper::writeTag(int poolId, QString context, QString epcHex, 
         s1 = QByteArray((const char *)wrProxy.identifyPool.at(poolId).killPwd, PASSWD_BYTES).toHex();
         jo["killPwd"] = s1;
 
-        emit findTagUpdate(jo);
-
+//        emit findTagUpdate(jo);
+        QJsonObject joRes2;
+        joRes2["event"] = "findTagUpdate";
+        QJsonArray param;
+        param.append(jo);
+        joRes2["param"] = param;
+        emit(onDeviceEvent(joRes2));
     }
     return(joRes);
 }
@@ -457,6 +824,15 @@ QJsonObject URfidWrapper::killTag(int poolId)
     return(joRes);
 }
 
+
+
+//-----------------------------------------------------------------------------------------
+//      3. 标签盘点功能
+//------------------------------------------------------------
+
+
+
+/*
 bool URfidWrapper::runInvent(bool startRun, int scanMode)
 {
     if (startRun)
@@ -466,11 +842,9 @@ bool URfidWrapper::runInvent(bool startRun, int scanMode)
         _inventScanTick = 0;
     }
     bool res = invent.runInventify(startRun, scanMode);
-    if (res && scanMode !=0)
-    {
-        emit(inventScanModeUpdate((scanMode==2)));
-    }
-    return(res);//    return(invent.runInventify(startRun, scanMode));
+//    if (res && scanMode !=0)
+//        emit(inventScanModeUpdate((scanMode==2)));
+    return(res);
 }
 
 void URfidWrapper::toggleInventMode()
@@ -490,7 +864,8 @@ void URfidWrapper::inventResetLet(bool discard)
             dbstore.markInventsDiscard();
         }
         invent.inventClear(!discard);
-        emit(inventScanChanged());
+//        emit(inventScanChanged());
+        sendInventCounts();
     }
 }
 
@@ -499,29 +874,24 @@ void URfidWrapper::inventSetGroupId(int grpId)
 {
     if (invent.currentGroupId != grpId)
         invent.currentGroupId = grpId;
-/*
-    if (!invent.scanRuning)
-    {
-        if (grpId <0)
-        {
-            dbstore.markInventsDiscard();
-            invent.inventClear(false);
-            emit(inventScanChanged());
-        }
-        else
-        {
-            invent.inventClear(true);
-            if (invent.currentGroupId != grpId)
-                invent.currentGroupId = grpId;
-        }
-    }
-*/
-
 }
+
+*/
 
 void URfidWrapper::onInventChangeMode(int mode)
 {
-    emit(inventScanModeUpdate((mode!=0)));
+//    emit(inventScanModeUpdate((mode!=0)));
+
+    QJsonObject joRes;
+    joRes["event"] = "inventMsg";
+    QJsonArray param;
+    QJsonObject jo;
+//    jo.insert("scanMode", mode);
+    jo.insert("scanMultiHit", mode);        //1- multiHit, 0 -single report
+    param.append(jo);
+    joRes["param"] = param;
+
+    emit(onDeviceEvent(joRes));
 }
 
 void URfidWrapper::onInventTickAck(int para)
@@ -530,8 +900,40 @@ void URfidWrapper::onInventTickAck(int para)
     {
         _inventScanTick = -para;
     }
-    emit(inventScanChanged());
+/*    emit(inventScanChanged());
+*/
+
+    QJsonObject joRes;
+    joRes["event"] = "inventMsg";
+    QJsonArray param;
+    QJsonObject jo;
+    jo.insert("scanTick", _inventScanTick);
+    param.append(jo);
+    joRes["param"] = param;
+
+    emit(onDeviceEvent(joRes));
 }
+
+void URfidWrapper::sendInventCounts()
+{
+    QJsonObject joRes;
+    joRes["event"] = "inventMsg";
+    QJsonArray param;
+    QJsonObject jo;
+
+    int cnt1;
+    cnt1 = invent.m_InventLet.count()+invent.m_unExportCount;
+    jo.insert("inventTagNumber", cnt1);
+
+    cnt1 = invent.m_baseFormatTagCount+invent.m_unExpFormatTagCount;
+    jo.insert("inventFmtTagNumber", cnt1);
+
+    param.append(jo);
+    joRes["param"] = param;
+    emit(onDeviceEvent(joRes));
+//    qDebug()<<"setnd invent count:"<<joRes;
+}
+
 
 void URfidWrapper::onInventUpdate(QByteArray epc, InventifyRecord_t* pRec, bool isNew)
 {
@@ -556,22 +958,42 @@ void URfidWrapper::onInventUpdate(QByteArray epc, InventifyRecord_t* pRec, bool 
     jo["modversion"] = pRec->modeVersion;
     jo["groupId"] = pRec->groupIdA;
     jo["context"] = QString::fromLatin1(pRec->identifier);
-    if (!isNew)
+/*    if (!isNew)
     {
         emit(inventTagUpdate(jo));
         return;
     }
 
     //
-//    jo["context"] = QString::fromLatin1(pRec->identifier);
     jo["title"] ="";            //书名，待扩展
     if (pRec->formatId >=0)
     {
         jo["securityBit"] = QString::number(pRec->securityBit);
     }
     emit(inventTagUpdate(jo));
+*/
+    if (isNew)
+    {
+        jo["title"] ="";            //书名，待扩展
+        if (pRec->formatId >=0)
+        {
+            jo["securityBit"] = QString::number(pRec->securityBit);
+        }
+    }
+
+    QJsonObject joRes;
+    QJsonArray param;
+    param.append(jo);
+
+    joRes["event"] = "inventTagCapture";
+    joRes["param"] = param;
+    emit(onDeviceEvent(joRes));
+
+    sendInventCounts();
 }
 
+
+/*
 void URfidWrapper::setInventScanPeriod(int time_ms)
 {
     if (!invent.scanRuning && time_ms != invent.scanIntfTime)
@@ -580,6 +1002,7 @@ void URfidWrapper::setInventScanPeriod(int time_ms)
         invent.ini->setValue("/Invent/scanIntfTime", time_ms);      //随时保存
     }
 }
+*/
 
 //=========================== 扩展功能 ============================================================
 
@@ -592,6 +1015,7 @@ void URfidWrapper::showSysToolbar(int autoHideTime)
 }
 #endif
 
+#if 0
 void URfidWrapper::sysClose()
 {
     if (wrProxy.identifyRuning)
@@ -699,14 +1123,6 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
     }
     //
     int res;
-/*    if (tabSelect !=0)
-    {
-        res = dbstore.exportToCsv(mfilename, tabSelect-1);
-    }
-    else
-    {
-        res = dbstore.inventExport2csv(mfilename);
-    } */
     if (tabSelect >=2)
         res = dbstore.exportToCsv(mfilename, tabSelect-2);
     else
@@ -724,25 +1140,22 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
         joRes["message"] = QString("数据导出成功，共:%1 条记录").arg(res);
     }
     //
-/*    if (tabSelect !=0)
-    {
-        if (tabSelect ==1)
-            wrProxy.writeRec.dailyCount = 0;
-        else if (tabSelect ==3)
-            wrProxy.killAuxRec.dailyCount = 0;
-        emit writedCountChanged();
-    } */
     if (tabSelect ==2)
     {
         wrProxy.writeRec.dailyCount = 0;
         wrProxy.killAuxRec.dailyCount = 0;
-        emit writedCountChanged();
+//        emit writedCountChanged();
+        QJsonObject jo;
+        jo.insert("writedCount", wrProxy.writeRec.dailyCount);
+        jo.insert("killCount", wrProxy.killAuxRec.dailyCount);
+        sendTagwrRunValue(jo);
     }
     else if (tabSelect ==0)
     {
         invent.inventClear(false);      //硬清除
         _inventScanTick = 0;
-        emit(inventScanChanged());
+//        emit(inventScanChanged());
+        sendInventCounts();
     }
     //
     return(joRes);
@@ -788,7 +1201,6 @@ QString URfidWrapper::doSysFileOpenDialog(QString initDir, QString filter)
     if (pTreeView)
     {
         pTreeView->setSelectionMode(QAbstractItemView::MultiSelection);
-//        pTreeView->model()->setHeaderData(1, Qt::Horizontal, tr("文件名"));
     }
     selfile.setFixedSize(720, 720);
 
@@ -1011,10 +1423,8 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
     }
     //
     QString fpath = getExtMediaPath();
-//    if ((reqUpdUrl == "file://" + fpath)&& fpath.length()>0)
     if ((reqUpdUrl == "file:/" + fpath)&& fpath.length()>0)
     {
-//        qDebug()<<"call update sys files!";
         system("./cpupdfile.sh");
         _xupdatePrompt = "文件已复制，重启更新";
         updCnt++;
@@ -1052,7 +1462,6 @@ QByteArray URfidWrapper::loadJsonTextFile(QString path)
         return("");
     //对比原ByteArray，Tab(\t)用空格替代了，换行(\n)保留，主要的是，条目按Key重新排序了
     return(jDoc.toJson(QJsonDocument::Compact));
-//    return(jsonDat);
 }
 
 bool URfidWrapper::saveJsonTextFile(QByteArray joStr, QString path)
@@ -1073,7 +1482,6 @@ bool URfidWrapper::saveJsonTextFile(QByteArray joStr, QString path)
         QJsonArray jArray = doc.array();
         for(int i=0; i<jArray.count(); i++)
         {
-//            out<<jArray.at(i).toString()<<endl;
             out<<jArray.at(i).toString()<<"\r\n";
         }
         jfile.flush();
@@ -1092,3 +1500,4 @@ bool URfidWrapper::saveJsonTextFile(QByteArray joStr, QString path)
     jfile.close();
     return(true);
 }
+#endif

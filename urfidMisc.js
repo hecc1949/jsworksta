@@ -23,11 +23,12 @@ $(function setupViewStyle()  {
     $("#wrEventTab").datagrid('getPager').css({height:"40px"});
 
     //点验界面
-//    $('#inventInfoPanel').css({fontSize: "1.1em", marginTop: '2px', marginTottom: '2px' });    //内部label字体
-    $("#inventTagCount, #inventRunCount").textbox('textbox').css({
-        fontSize: "1.5em", fontWeight:"bold",color:"blue"   });
-    $("#inventGroupedCount, #inventUnFmtTagCount, inventCrosGrpCount").textbox('textbox').css({
-        fontSize: "1.2em", color:'black' });
+    $("#inventTagCount, #inventRunCount").each(function()   {
+        $(this).textbox('textbox').css({fontSize: "1.5em", fontWeight:"bold",color:"blue"});
+    });
+    $("#inventUnFmtTagCount, #inventGroupedCount,#inventCrosGrpCount").each(function()   {
+        $(this).textbox('textbox').css({fontSize: "1.2em", fontWeight:"bold",color:"black"});
+    });
 
     $("#inventTab").datagrid('getPager').css({height:"40px"});
 
@@ -41,7 +42,7 @@ $(function setupViewStyle()  {
     });
 });
 
-//
+//数据管理&系统配置及分页主菜单的配置
 $(function initMiscViews()  {
     //主菜单
     $("#functionMenu").accordion({ onSelect: functionsMain    });
@@ -79,7 +80,9 @@ $(function initMiscViews()  {
                     tabsel +=1;
                 }
                 var filename = $("#exportTofile").textbox("getValue");
-                devwrapper.exportDbRecords(tabsel, filename, function(jo)   {
+//                devwrapper.exportDbRecords(tabsel, filename, function(jo)   {
+                doDevCommand("miscExportDbRecords",[tabsel. filename], function(joRes)  {
+                    var jo = joRes.data[0];
                     if (jo.error === 0) {
                         $.messager.alert('导出数据成功', jo.message,'info');
                         if (tabsel <2)
@@ -97,10 +100,12 @@ $(function initMiscViews()  {
         }
     });
     $("#exportTofile").textbox('textbox').focus(function()  {
-        devwrapper.imeEnable(true);
+//        devwrapper.imeEnable(true);
+        doDevCommand("sysImeEnable",[true]);
     });
     $("#exportTofile").textbox('textbox').blur(function()  {
-        devwrapper.imeEnable(false);
+//        devwrapper.imeEnable(false);
+        doDevCommand("sysImeEnable",[false]);
     })
     $("#exportTofile").textbox('textbox').css("fontSize", "1.5em");     //要在event配置后面
 
@@ -118,12 +123,16 @@ $(function initMiscViews()  {
     $("#configApply").linkbutton({
         onClick: function() {
             var rows = $("#configSettings").propertygrid('getChanges');
-            devwrapper.setSysConfigs(rows, function(updCnt)    {
+//            devwrapper.setSysConfigs(rows, function(updCnt)    {
+            doDevCommand("miscSetSysConfigs", rows, function(joRes) {
+                var updCnt = joRes.data[0].updateCount;
                 if (updCnt>0)   {
                     $("#configApply").linkbutton("disable");
                     setTimeout(function() {
-                        devwrapper.getSysConfigs(function(res) {
-                            $('#configSettings').propertygrid('loadData', res);
+//                        devwrapper.getSysConfigs(function(res) {
+//                            $('#configSettings').propertygrid('loadData', res);
+                        doDevCommand("miscGetSysConfigs",[], function(joRes)    {
+                            $('#configSettings').propertygrid('loadData', joRes.data);
                         });
                         $("#configApply").linkbutton("enable");
                     }, 3000);
@@ -138,7 +147,8 @@ $(function initMiscViews()  {
                     msg: '警告：点验数据没有完整上报，退出程序将丢失 <br/>应该上报数据或转成txt文件保存再退出.',
                     fn: function(r){
                         if (!r)  {
-                            devwrapper.sysClose();
+//                            devwrapper.sysClose();
+                            doDevCommand("sysClose",[]);
                         }
                     }
                 });
@@ -146,7 +156,8 @@ $(function initMiscViews()  {
                 $.messager.confirm({title:'退出系统', msg: '确定要退出程序？',
                     fn: function(r){
                         if (r)  {
-                            devwrapper.sysClose();
+//                            devwrapper.sysClose();
+                            doDevCommand("sysClose",[]);
                         }
                     }
                 });
@@ -157,12 +168,17 @@ $(function initMiscViews()  {
 
 function miscDevEventLink() {
     //一般配置，读出
-    devwrapper.getSysConfigs(function(res) {
-        $('#configSettings').propertygrid('loadData', res);
+//    devwrapper.getSysConfigs(function(res) {
+//        $('#configSettings').propertygrid('loadData', res);
+    doDevCommand("miscGetSysConfigs",[], function(joRes)    {
+        $('#configSettings').propertygrid('loadData', joRes.data);
     });
     //IP输入框
-    devwrapper.loadJsonTextFile("setting.json", function(res){
-        jo = JSON.parse(res);
+//    devwrapper.loadJsonTextFile("setting.json", function(res){
+//    jo = JSON.parse(res);
+    doDevCommand("miscLoadJsonFile", ["setting.json"], function(joRes)    {
+//        console.log("get:"+joRes.data[0].text);
+        jo = JSON.parse(joRes.data[0].text);
         if (jo !== null)    {
             m_setting = jo;
             if (jo.serverIp !== undefined)  {
@@ -176,7 +192,8 @@ function miscDevEventLink() {
         if ($(this).validatebox('isValid'))  {
             if (m_setting.serverIp===undefined || $(this).val() !== m_setting.serverIp)   {
                 m_setting.serverIp = $(this).val();
-                devwrapper.saveJsonTextFile(JSON.stringify(m_setting),"setting.json");
+//                devwrapper.saveJsonTextFile(JSON.stringify(m_setting),"setting.json");
+                doDevCommand("miscSaveToJsonFile", [JSON.stringify(m_setting), "setting.json"]);
             }
         }
     });
@@ -222,8 +239,10 @@ function functionsMain(title, index)    {
         //读写器模式切换
         if ((index===1 && isInventMode)||(index===0 && !isInventMode))  {
             var selInvent = (index===0);
-            devwrapper.setInventifyMode(selInvent, function(result)    {
-                if (!result)    {
+//            devwrapper.setInventifyMode(selInvent, function(result)    {
+//            if (!result)    {
+            doDevCommand("selectInventMode",[selInvent], function(joRes)  {
+                if (!joRes.result)    {
                     $.messager.alert('设备故障','读写卡模块模式切换失败!','error');
                     if (selInvent)
                         $("#functionMenu").accordion('select', 0);
@@ -237,7 +256,8 @@ function functionsMain(title, index)    {
         }
         //界面关联
         if (index===2)   {
-            devwrapper.imeEnable(true);
+//            devwrapper.imeEnable(true);
+            doDevCommand("sysImeEnable",[true]);
             //数据库datagrid显示
             var selAct = -1;
             if ($("#dbExportMarkSel").switchbutton("options").checked)
@@ -250,7 +270,10 @@ function functionsMain(title, index)    {
             var filename = fileNameFromTime(tabSel, (selAct===-1));
             $("#exportTofile").textbox("setValue", filename);
             //检查可用的sdcard/udisk
-            devwrapper.getExtMediaPath(function(fpath)  {
+//            devwrapper.getExtMediaPath(function(fpath)  {
+//            m_locfile_mediaPath = fpath;
+            doDevCommand("miscGetExtMediaPath",[], function(joRes)  {
+                var fpath = joRes.data[0].fpath;
                 m_locfile_mediaPath = fpath;
                 if (fpath.length ===0)  {
                     $("#fileCopy2Sd").linkbutton("disable");
@@ -264,10 +287,208 @@ function functionsMain(title, index)    {
                 }
             });
         }   else if (index===3)  {
-            devwrapper.imeEnable(true);
+//            devwrapper.imeEnable(true);
+            doDevCommand("sysImeEnable",[true]);
         }   else    {
-            devwrapper.imeEnable(false);
+//            devwrapper.imeEnable(false);
+            doDevCommand("sysImeEnable",[false]);
         }
     }
+}
+
+
+//-------数据库管理相关 ---------------------------------------------
+/**
+//# local database(booktags.db)的table/fields定义：
+const tabWritedtagsFieldNames = ["id", "dailycount", "exportMark", "epcBytes",
+        "itemIdentifier", "EPC", "tagSerialNo",
+        "aversion", "usrBankWrited", "passwdWrited", "lockAction",
+        "writetime", "operatorName", "remark"];
+const tabInventsFieldNames = ["id", "invent_id", "exportMark",
+        "EPC", "itemIdentifier",
+        "exlink","grp_id","grp_id2","updtime"];
+*/
+//用sql读取数据库的一页数据，转换成datagrid显示
+function loadDbRecords(selectMark, $dg, begin, pagesize, callback)    {
+    var selTab_Invents = false;
+    var query = "Select * from ";
+    if ($dg.attr("id") === "wrEventDb" )    {
+        query += "writedtags ";
+    }   else    {
+        query += "invents ";
+        selTab_Invents = true;
+    }
+    if (selectMark >=0) {
+        query += (" where exportMark = " + selectMark);
+    }
+    query += " limit ? offset ?";
+//    para = [pagesize, begin];
+    var databuf = [];
+//    devwrapper.execDbSql(query, para, function(joRes)   {
+    doDevCommand("miscExecDbSql", [query, pagesize, begin], function(joRes)  {
+//        if (joRes.error.code ===0)  {
+        if (joRes.data[0].error.code ===0)  {
+//            var rowNum = joRes.rows.length;
+            var rowNum = joRes.data[0].rows.length;
+            for(var i=0; i<rowNum; i++) {
+//                var arow = joRes.rows[i];
+                var arow = joRes.data[0].rows[i];
+                var rec = {};               //必须是local的
+                if (!selTab_Invents)    {               //writedtags table
+                    rec.id = parseInt(arow[0]);
+                    rec.daily_id = parseInt(arow[1]);
+                    rec.context = arow[4];
+                    rec.epc = arow[5];
+                    rec.tagserial = arow[6];
+                    rec.wrtime = convertUtcTime(arow[11]);
+                    rec.wrUsrBank = (parseInt(arow[8]) !== 0);
+                    rec.locked = (parseInt(arow[10]) !== 0);
+                    rec.remark = arow[13];
+                    rec.exportMark = arow[2];
+                }   else    {                           //invents table
+                    rec.id = parseInt(arow[0]);
+                    rec.invent_id = parseInt(arow[1]);
+                    rec.exportMark = parseInt(arow[2]);
+                    rec.inventGrp = parseInt(arow[6]) +1;
+                    rec.epc = arow[3];
+                    rec.context = arow[4];
+                    if (parseInt(arow[7]) ===0)
+                        rec.formatId = "标准";
+                    else if (parseInt(arow[7]) <0)
+                        rec.formatId = "空白";
+                    else
+                        rec.formatId = "格式"+arow[7];
+                    rec.updtime = convertUtcTime(arow[8]);
+                }
+
+                databuf.push(rec);
+            }
+        }   else {
+//            alert("SQL exec error: "+ joRes.error.message);
+            alert("SQL exec error: "+ joRes.data[0].error.message);
+        }
+        //传递到loadData显示
+        if (callback)   {
+            callback(databuf);
+        }
+    });
+}
+
+//初始化表格显示，查询记录总数作为分页参数，并读出第一页显示
+function dbViewInit(selectMark, $dg)     {
+    var query;
+    if ($dg.attr("id") === "wrEventDb" )
+        query = "Select Count(*) from writedtags";
+    else
+        query = "Select Count(*) from invents";
+    if (selectMark >=0)    {
+        query += (" where exportMark=" + selectMark);
+    }
+//    devwrapper.execDbSql(query, [], function(joRes)   {
+    doDevCommand("miscExecDbSql", [query], function(joRes)  {
+        var cnt = 0;
+//        if (joRes.error.code ===0)  {
+        if (joRes.data[0].error.code ===0)  {
+//            var row = joRes.rows[0];
+            var row = joRes.data[0].rows[0];
+            cnt = parseInt(row[0]);
+        }
+        var pageSize = $dg.datagrid('options').pageSize;
+        loadDbRecords(selectMark, $dg, 0, pageSize, function(dat)    {
+            data = {
+                total: cnt,
+                rows: dat
+            }
+            $dg.datagrid('loadData', data);
+        });
+    })
+}
+
+//sql浏览database的分页实现(=> datagrid.loadFilter)
+function pagerQueryDb(data) {
+    var dg = $(this);
+    var opts = dg.datagrid('options');
+    var pager = dg.datagrid('getPager');
+    pager.pagination({
+        onSelectPage: function (pageNum, pageSize) {
+            opts.pageNumber = pageNum;
+            opts.pageSize = pageSize;
+            pager.pagination('refresh', {
+                pageNumber: pageNum,
+                pageSize: pageSize
+            });
+            var selAct = -1;
+            if ($("#dbExportMarkSel").switchbutton("options").checked)
+                selAct = 0;
+            loadDbRecords(selAct, dg, (pageNum-1)*pageSize, pageSize, function(pagedat)    {
+                data.rows = pagedat;
+                dg.datagrid('loadData', data);
+            });
+        }
+    });
+
+    return data;
+}
+
+//--- 文件功能 ---------------------------------------------
+//csv文件上传
+function uploadDatfiles(newValue, oldValue)   {
+    var files = $("#uploadfiles").filebox('files');     //
+//    var files = $(this).next().find('input[type=file]')[0].files;   //
+    if (!files || files.length ===0)  {
+        console.log("no file");
+        return;
+    }
+    var formData = new FormData();
+    $.each(files, function(i, file)    {
+        formData.append('upfiles', file);
+    });
+    var upurl = "http://" + m_setting.serverIp + ":2280/worksta/uploadFile";
+    $.ajax({
+        url: upurl,
+        type:"POST",
+        data:formData,
+        timeout: 800,           //!
+        processData:false,
+        contentType:false,
+        success:function(res)   {
+            if (res)    {
+                var msg;
+                if (files.lenght<2)
+                    msg = +newValue;
+                else
+                    msg = files.length + "个文件.";
+                $.messager.alert("文件上传成功", "已上传文件:<br/>"+msg, 'info');
+            }
+        },
+        error: function(err)    {
+            $.messager.alert('文件上传失败', '没有联网，上传地址(URL)错误，或接收服务没有开启'+m_setting.serverIp,'error');
+        }
+    })
+}
+
+//本地文件管理：复制到u盘和删除
+function locFileOperate(cmd)    {
+    if (devwrapper === null)
+        return;
+//    devwrapper.doSysFileOpenDialog("csv", "csv files(*.csv),text files(*.txt)", function(filenames)    {
+    doDevCommand("miscSelectLocFiles",["csv", "csv files(*.csv),text files(*.txt)"], function(joRes)    {
+        var filenames = joRes.data[0].filenames;
+//        if (filenames.length ===0)
+        if (!joRes.result)
+            return;
+        var targetPath = "";
+        if (cmd ==="copy")
+            targetPath = m_locfile_mediaPath;
+//        devwrapper.doSysFileCommand(cmd, filenames, targetPath, function(res)   {
+        doDevCommand("miscRunLocFileCommand", [cmd, filenames, targetPath], function(joRes)   {
+            var res = joRes.data[0];
+                if (res.error ===0)     {
+                    $.messager.alert('文件', res.message, 'info');
+                }   else    {
+                    $.messager.alert('文件处理错误', res.message, 'error');
+                }
+        });
+    });
 }
 

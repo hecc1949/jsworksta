@@ -25,4 +25,4 @@ a. 显示分辨率将改成1280x720，为此，将界面显示元素作一次细
     ccs中设置不了的style在js文件中设置，这部分抽取出来，集中在setupViewStyle()
 b. 按功能重新设定文件名，增加urfidInvent.js, urfidMisc.js文件，将过于庞大的urfidwr.js文件打散。但这只是把函数平移过去，
     不是模块化。
-
+c. webchannel接口按event/command模式重新封装，这样结构清晰，扩展性好，但代码量加大了，urfidwrapper.cpp显得过大，增加一个urfidAux.cpp文件。
