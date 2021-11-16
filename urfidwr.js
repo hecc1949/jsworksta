@@ -3,31 +3,23 @@
   *
   */
 //全局变量
-window.channel = null;
-window.devwrapper = null;       //这个先于qwebchannel初始化，界面初始化时qwebchannel未打开，有必要用这个判断
-
-var mWritedCount = 0;
 var hotWriteObj = {
     barcode: "",
-    epc: "",
+    epc: "",        //读出标签的epc
     poolId:-1,
     tagSerial:"",
     reqEpcBits:96,
-    barcodeRepeat:false
+    validEpcBits:0
+//    barcodeRepeat:false
 };
 
-var isInventMode = true;
-var barcodeNewline = false, scanRuning = false, inventRuning = false;
+var wrEventsCursor = 0;
+var scanRuning = false;
 
-var wrEventBuf = [];
-
-
-var m_locfile_mediaPath = "";
-var m_setting;
-
-//界面初始化。等效于放在$(document).ready((function()  {    }) 中
-$(function initViews()  {
-    //条码输入框，设置不能用css配置的style
+//界面初始化
+//$(function initViews()  {
+function initWrtagViews()  {
+    //条码输入框
     $("#barcodeInput").textbox('textbox').bind('keydown', onBarcodeInput);      //event连接。jquery执行环境
 
    //条码-标签状态提示框。是普通input。style用css设置，readonly用jQuery设置
@@ -41,33 +33,25 @@ $(function initViews()  {
     $("#usingTag").textbox('textbox').focus(function()  {
         $("#barcodeInput").textbox('textbox').focus();
     });
+    $("#foundtagTab").datagrid({ onSelect: onFoundTagSelect });
 
-    //找到标签表格
-    $("#foundtagTab").datagrid({
-        onSelect: function(index, row)  {       //手工选择标签
-            if (!scanRuning)    {
-                if (hotWriteObj.barcode.length>0)   {
-                    $("#barcodeStatus").val("选择标签");
-                    if (row.usingmode === "完整读出" && row.epcBits >=hotWriteObj.reqEpcBits)  {
-                        hotWriteObj.poolId = index;
-                        hotWriteObj.tagSerial = row.tagSerial;
-                        $("#usingTag").textbox('setValue', row.epc);
-                        $("#btnWriteTag").linkbutton('enable');
-                    }   else    {
-                        hotWriteObj.poolId = -1;
-                        $("#usingTag").textbox('setValue', "");
-                    }
-                }
-                $("#btnKillTag").linkbutton('enable');
-            }
-        }
-    });      
     //写标签计数, 灭活计数
     $("#writedCount").textbox('textbox').focus(function()  {
         $("#barcodeInput").textbox('textbox').focus();
     });
-    //写入事件记录表格
-    $("#wrEventTab").datagrid({loadFilter: pagerFilter});
+    //事件表格
+    $("#wrEventTab").datagrid({
+        onLoadSuccess: function()   {       //设置select光标要在onLoadSuccess，load/reload会冲掉selectRow动作
+            var pagesize = $(this).datagrid("options").pageSize;
+            var cursor = wrEventsCursor % pagesize;
+            if (cursor>=0)
+                $(this).datagrid("selectRow", cursor);
+        }
+    });
+    $("#wrEventTab").datagrid('getPager').css({height:"30px"});
+    $("#wrEventTab").datagrid('getPager').pagination({
+        layout: ['sep','first','prev','links','next','last','sep','refresh','info']
+    });
 
     //工具栏按钮
     $("#btnFindTag").bind('click', runFindTag);
@@ -76,92 +60,137 @@ $(function initViews()  {
         //写入动作A: 按界面button手动写入
         onClick: writeTag
     });
-    $("#btnKillTag").linkbutton({onClick: killTag, disabled: true});
-
-    //页面载入，设置焦点
-    $("#barcodeInput").next('span').find('input').focus();
-});
-
-//webchannel全局对象加载
-$(function()    {
-    if (qt === undefined || qt.webChannelTransport === undefined)    {
-        return;
-    }
-    window.channel = new QWebChannel(qt.webChannelTransport, function(channel) {
-        window.devwrapper = channel.objects.urfidWrapper;
-        devwrapper.onDeviceEvent.connect(onDeviceEvents);       //前置
-
-        doDevCommand("openURfidWitor",[1, true], function(joRes)   {
-            if (!joRes.result)   {
-                $("#barcodeInput").textbox('disable');
-                $("#btnFindTag").linkbutton("disable");
-                $("#btnInventRun").linkbutton("disable");
-            }   else    {
-                onInventDevStart();
-            }
-        });
-
-/*
-        devwrapper.openURfidWritor(1, true, function(res) {     //0-写标签模式，1-点验模式
-            if (!res)   {
-                $("#barcodeInput").textbox('disable');
-                $("#btnFindTag").linkbutton("disable");
-                $("#btnInventRun").linkbutton("disable");
-            }
-
-            onInventDevStart();
-        });
-
-       devwrapper.writedCountChanged.connect(function()    {
-            mWritedCount = devwrapper.writedCount;
-            $("#writedCount").textbox('setValue', mWritedCount);
-            $("#killCount").textbox('setValue', devwrapper.killCount);
-        });
-
-        devwrapper.promptMessageUpdate.connect(function(level)    {
-            if (level >=0)   {
-                $("#statusBar").text(devwrapper.promptMessage);
-            }
-        });
-*/
-        //读写器event连接到处理函数
-        //写标签功能
-/*        devwrapper.findTagTick.connect(onfindTagTick);
-        devwrapper.findTagUpdate.connect(onfindTagUpdate);  */
-        //点验功能
-//        inventDevEventLink();
-
-        //一般配置，读出
-        miscDevEventLink();
+    $("#selWrtagFast").switchbutton({
+        onChange: function(checked) {
+            $("#barcodeInput").textbox('textbox').focus();
+        }
     });
-});
+    $("#wrtagToolsGrp").accordion({
+        onSelect: function(title, index)    {
+            $('#mainwin').layout('collapse', 'west');   //关闭左侧菜单栏
+/*            if ($("#wrEventTab").datagrid("getRows").length >0)
+                $("#btnWrDatExportDownld").linkbutton("enable")
+            else
+                $("#btnWrDatExportDownld").linkbutton("disable")    */
+        }
+    });
 
-//webchannel event消息分发
-function onDeviceEvents(joRes)    {
-    if (joRes.event ==='inventMsg')   {
-        onInventDevMsg(joRes.param[0]);
-    }
-    else if (joRes.event==='inventTagCapture')  {
-        onInventTagUpdate(joRes.param[0]);
-    }
-    else if (joRes.event === 'tagwrMsg')    {
-        onTagwrDevMsg(joRes.param[0]);
-    }
-    else if (joRes.event === 'findTagUpdate')    {
-        onfindTagUpdate(joRes.param[0]);
-    }
+    $("#btnKillTag").linkbutton({onClick: killTag, disabled: true});
+    $("#btnWrSecurityBit").linkbutton({
+        disabled: true,
+        onClick: function() {
+            writeDefinedItemWord(111);
+        }
+    });
+    $("#btnEpcSizeRebuild").linkbutton({
+        disabled: true,
+        onClick: function() {
+            writeDefinedItemWord(-1);
+        }
+    });
+
+    //导出数据
+    $("#btnWrDatExportDownld").linkbutton({
+        onClick: function() {
+            if (!scanRuning) {
+                doWithPasswd("结束点验，下载数据", function(passwd)  {
+                    var para = [2, ""];
+                    var jo = {"command":"miscExportDbRecords", "param":JSON.stringify(para),
+                                "clientId":_clientId, "password":passwd   };
+                    sendAjaxCommand("commands", jo, function(dat)   {
+                      if (dat.result===true && dat.filename.length>0)    {
+                            filedownload(dat.filename);
+                            $("#statusBar").text("导出数据文件："+ filebasename(dat.filename)+"  保存在你的浏览器<下载>文件夹中");
+                        }
+                        else    {
+//                            $.messager.alert('错误','命令执行失败! 权限或密码错误','error');
+                            $.messager.alert('错误','命令执行失败: 没有可用数据','error');
+                        }
+                    });
+                });
+            }
+        }
+    });
+}
+//});
+
+function clearWrTagPanel()  {
+    $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
+    $("#wrEventTab").datagrid('load');
+
+    $("#barcodeInput").textbox('setValue', "");
+    $("#barcodeStatus").val("");
+    $("#usingTag").textbox('setValue', '');
+    $("#btnWriteTag").linkbutton('disable');
+    $("#btnKillTag").linkbutton('disable');    
+    $("#btnWrSecurityBit").linkbutton('disable');
+    $("#barcodeInput").next('span').find('input').focus();
+
+    hotWriteObj.barcode = "";
+    hotWriteObj.poolId = -1;        
 }
 
-function doDevCommand(cmd, param, callback) {
-    if (devwrapper !== null)    {
-        if (callback !== undefined)
-            devwrapper.doCommand(cmd, param, callback);
-        else
-            devwrapper.doCommand(cmd, param);
+//---------------------- 写标签功能 ---------------------------------------------
+var defEpcSizes = [{"size": 0, "barcodeInfo":"条码错误"},
+    {"size":96, "barcodeInfo":"条码合规格"},
+    {"size":128, "barcodeInfo":"条码合规格"},
+    {"size":144, "barcodeInfo":"条码要求144位以上标签"}];
+var barcodeNewline = false;
+//扫描枪输入
+function onBarcodeInput(e)  {    
+    if (_clientId !==1)
+        return;
+    var barcode = $(this).val();        //取当前值。用$("id").textbox('getValue')取的不可靠
+    if (e.keyCode === 13){	// 当按下回车键时接受输入的值。
+        barcodeNewline = true;
+        doDevCommand("tagBarcodeToEpc",[barcode, 1], function(joRes)   {
+            var fmtId = joRes.data[0].reqTagType;
+            var tagtype = Math.abs(fmtId);
+            if (tagtype >3)
+                tagtype = 0;
+            var s1 = defEpcSizes[tagtype].barcodeInfo;
+            if (fmtId <0)
+                s1 = "条码重复";
+            $("#barcodeStatus").val(s1);
+            hotWriteObj.reqEpcBits = defEpcSizes[tagtype].size;
+            if (fmtId >0 && fmtId<=3)    {      //条码正确，且不重复
+                hotWriteObj.barcode = barcode;
+                if (scanRuning)     {
+                    runFindTag();        //stop停止扫描，在停止后的callback中进一步判断是否启动写入
+                }
+                else   {
+                    var validId = getValidTag();
+                    if (validId >=0 && hotWriteObj.epc !== joRes.data[0].epc)   {   //有可用标签
+                        $("#usingTag").textbox('setValue', joRes.data[0].epc);
+                        //xx写入动作C： 条码输入时已经找到可用标签，不在扫描状态(手动开启的），启动写入
+                        //模式A：先找到了可用标签，输入条码启动写。扫描已经停止
+                        hotWriteObj.poolId = validId;
+                        writeTag();
+                    }
+                    else    {
+                        runFindTag();   //start
+                    }
+                }
+            }
+            else    {
+                $("#barcodeInput").textbox('textbox').focus();
+            }
+        });
     }
+    else    {
+        //普通字符输入。第一字符开启新输入模式，扫描单个条码
+        if (barcodeNewline) {
+            barcodeNewline = false;
+            $("#barcodeInput").textbox('setValue', "");
+            $("#barcodeStatus").val("");
+            $("#usingTag").textbox('setValue', "");
+            hotWriteObj.barcode = "";       //不可用标记
+            hotWriteObj.reqEpcBits = 96;
+        }
+    }           
 }
 
-
+//event响应：
 function onTagwrDevMsg(jo)  {
     if (jo.writedCount !== undefined)  {
         $("#writedCount").textbox('setValue', jo.writedCount);
@@ -169,6 +198,10 @@ function onTagwrDevMsg(jo)  {
     if (jo.killCount !== undefined)  {
         $("#killCount").textbox('setValue', jo.killCount);
     }
+    if (jo.writedCount !== undefined || jo.killCount !== undefined) {
+        setGridviewCursor($("#wrEventTab"), -1);
+    }
+
     if (jo.dbMessage !== undefined && jo.dbMessageLevel !== undefined)  {
         if (jo.dbMessageLevel >=0)   {
             $("#statusBar").text(jo.dbMessage);
@@ -178,106 +211,22 @@ function onTagwrDevMsg(jo)  {
         onfindTagTick(jo.findTagTick);
     }
 }
-//------------------
 
-
-function clearWrTagPanel()  {
-    $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
-    wrEventBuf.length = 0;
-    $("#wrEventTab").datagrid('loadData', {total:0, rows:[]});     //
-    $("#wrEventTab").datagrid('getPager').pagination('select',1);
-
-    $("#barcodeInput").textbox('setValue', "");
-    $("#usingTag").textbox('setValue', '');
-    $("#btnWriteTag").linkbutton('disable');
-    $("#btnKillTag").linkbutton('disable');
-    $("#barcodeInput").next('span').find('input').focus();
-    hotWriteObj.barcode = "";
-    hotWriteObj.poolId = -1;    
-}
-
-//---------------------- 写标签功能 ---------------------------------------------
-
-//扫描枪输入
-function onBarcodeInput(e)  {    
-    var barcode = $(this).val();        //取当前值。用$("id").textbox('getValue')取的不可靠
-    if (e.keyCode === 13){	// 当按下回车键时接受输入的值。
-        barcodeNewline = true;
-/*        devwrapper.checkBarcodeValid(barcode, function(restype) {
-  */
-        doDevCommand("tagCheckBarcode",[barcode], function(joRes)   {
-            var restype = joRes.data[0].reqTagType;
-            var tagtype = Math.abs(restype);
-            //返回值: 0-错误，1-要96bit标签，2-128bit标签，3-144bit以上标签。 负值为条码已写过，重复。
-            if (tagtype >=1 && tagtype <=3) {
-                if (restype>0)  {
-                    if (restype===1)
-                        $("#barcodeStatus").val("条码合规格");
-                    else if (restype===2)
-                        $("#barcodeStatus").val("条码要求128bit标签");
-                    else
-                        $("#barcodeStatus").val("条码要求144位以上标签");
-                    hotWriteObj.barcodeRepeat = false;
-                }   else    {
-                    $("#barcodeStatus").val("条码重复");
-                    hotWriteObj.barcodeRepeat = true;
-                }
-/*                devwrapper.epcEncode(barcode, tagtype, function(epc)    {   //return在callback中
-                    hotWriteObj.barcode = barcode;
-                    hotWriteObj.epc = epc;
-  */
-                doDevCommand("tagEpcEncode",[barcode, tagtype], function(joRes)   {
-                    hotWriteObj.barcode = barcode;
-                    hotWriteObj.epc = joRes.data[0].epc;
-                    if (tagtype ===1)
-                        hotWriteObj.reqEpcBits = 96;
-                    else if (tagtype ===2)
-                        hotWriteObj.reqEpcBits = 128;
-                    else
-                        hotWriteObj.reqEpcBits = 144;
-
-                    if (scanRuning)     {
-                        runFindTag();        //stop                        
-                    }   else   {
-                        if (hotWriteObj.poolId>=0 && restype>0)  {      //条码重复则不启动写，但重新找标签
-//                            $("#usingTag").textbox('setValue', epc);
-                            $("#usingTag").textbox('setValue', joRes.data[0].epc);
-                            //写入动作C： 条码输入时已经找到空白标签，不在扫描状态(手动开启的），启动写入
-                            writeTag();
-                        }   else    {
-                            runFindTag();   //start
-                        }
-                    }
-                });
-            }   else    {
-                $("#barcodeStatus").val("条码错误");
-                $("#barcodeInput").textbox('textbox').focus();
-                return;
-            }
-        });
-    }   else    {
-        //新输入：扫描下一个条码
-        if (barcodeNewline) {
-            barcodeNewline = false;
-            $("#barcodeInput").textbox('setValue', "");
-            $("#barcodeStatus").val("");
-            $("#usingTag").textbox('setValue', "");
-            hotWriteObj.barcode = "";
-            hotWriteObj.epc = "";
-        }
-    }           
-}
-
-//启动查找待写标签
+//启动&停止查找待写标签
 function runFindTag() {
+    if (_clientId !==1)
+        return;
     if (!scanRuning)    {   //start
-        hotWriteObj.poolId = -1;        //不可快写
+        $('#mainwin').layout('collapse', 'west');   //关闭左侧菜单栏        
+        hotWriteObj.poolId = -1;        //不可写
+        hotWriteObj.epc = "";
+        hotWriteObj.validEpcBits = 0;
         $("#foundtagTab").datagrid('loadData', {total:0, rows:[]});     //清空列表
+
         $("#usingTag").textbox('setValue', '');
         $("#btnWriteTag").linkbutton('disable');
         $("#btnKillTag").linkbutton('disable');
-//        devwrapper.findTagsForWrite(true, function(res) {
-//            if (res)    {       //启动成功
+        $("#selWrtagFast").switchbutton('disable');
         doDevCommand("tagFindValid",[true], function(joRes)   {
             if (joRes.result)    {       //启动成功
                 scanRuning = true;
@@ -285,22 +234,105 @@ function runFindTag() {
             }
         });
         $("#statusBar").text(' ');      //清prompt信息显示
-    }    else  {        //stop
-//        devwrapper.findTagsForWrite(false, function(res) {
-//            if (res)    {       //停止成功
+    }
+    else  {        //stop
         doDevCommand("tagFindValid",[false], function(joRes)   {
             if (joRes.result)    {       //停止成功
                 scanRuning = false;
-                $("#btnFindTag").linkbutton({"text": "查找标签"});
-                $("#usingTag").textbox('setValue', '');
-                $("#barcodeStatus").val("等待标签");
-//                $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
-            }
+                afterStopScan();
+            }   //正常也会出现一些stop失败的情况，因为模块的停止扫描受一些实际时序约束
         });
     }
     $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
 }
 
+//功能子函数：标签可写条件定义
+function getValidTag()  {
+    if (hotWriteObj.poolId>=0)
+        return(hotWriteObj.poolId);
+
+    var validId = -1;
+    var rows = $("#foundtagTab").datagrid('getRows');
+    for(var i=0; i<rows.length; i++)    {
+        if (rows[i].usingmode === "完整读出" && rows[i].format === "空白" && rows[i].epc.length>4
+                && rows[i].epcBits>=hotWriteObj.reqEpcBits && rows[i].epc !== prev_writed_Epc)   {
+            hotWriteObj.tagSerial = rows[i].tagserial;
+            hotWriteObj.epc = rows[i].epc;
+            hotWriteObj.validEpcBits = rows[i].epcBits;
+            validId = i;
+            break;
+        }
+    }
+    if (validId <0 && $("#selWrtagFast").switchbutton("options").checked===true
+            && rows.length===1 && rows[0].usingmode === "完整读出" && rows[0].epc.length>4
+            && rows[0].epcBits>=hotWriteObj.reqEpcBits && rows[0].epc !== prev_writed_Epc)    {
+        hotWriteObj.tagSerial = rows[0].tagserial;
+        hotWriteObj.epc = rows[0].epc;
+        hotWriteObj.validEpcBits = rows[0].epcBits;
+        validId = 0;
+
+    }
+    return(validId);
+}
+
+//功能子函数：
+function afterStopScan()    {
+    var validId = getValidTag();
+    if (validId>=0)     {
+        $("#foundtagTab").datagrid('selectRow', validId);
+        $("#barcodeStatus").val("可以写入=>");
+        $("#usingTag").textbox('setValue', hotWriteObj.epc);
+        //x写入动作B: 条码输入后，没有可用标签（且不在扫描中)，自动或手动开启找标签，找到空白标签即写入
+        //模式B：先有条码后找到可用标签，停扫描启动写入。条码输入时正在扫描，发现有可用标签命令停止扫描；或扫描机制自动停止了扫描
+        if (hotWriteObj.barcode.length>0 && hotWriteObj.validEpcBits>=hotWriteObj.reqEpcBits)   {   //有条码
+            hotWriteObj.poolId = validId;       //
+            writeTag();
+        }
+        else    {
+            $("#usingTag").textbox('setValue', '');
+            $("#barcodeStatus").val("等待输入条码");
+        }
+    }
+    else    {
+        if (hotWriteObj.barcode.length>0)  {
+            if ($("#foundtagTab").datagrid('getRows').length ===1 &&
+                    $("#foundtagTab").datagrid('getRows')[0].epc === prev_writed_Epc)   {
+                $("#barcodeStatus").val("已写标签请拿开");
+            }
+            else if ($("#foundtagTab").datagrid('getRows').length >0)
+                $("#barcodeStatus").val("没有空白标签, 请手工选择");
+            else
+                $("#barcodeStatus").val("没有找到空白标签");
+        }
+        else {
+            $("#barcodeStatus").val("扫描停止");
+        }
+    }
+    $("#btnFindTag").linkbutton({"text": "查找标签"});
+    $("#selWrtagFast").switchbutton('enable');
+    if ($("#foundtagTab").datagrid('getRows').length>0 && _clientId===1) {
+        $("#btnWriteTag").linkbutton('enable');
+        $("#btnKillTag").linkbutton('enable');
+    }
+
+    $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
+}
+
+//event响应：读写器扫描待写标签发出的event
+function onfindTagTick(count)    {
+    if (count<0)    {       //底层模块达到了(最大)停止条件而自动停止了扫描
+        if (scanRuning) {
+            scanRuning = false;     //这个停止是底层自动产生的，与前端控制异步，因此有可能处于scanRuning状态
+        }
+        afterStopScan();
+    }
+    else {
+        $("#barcodeStatus").val("扫描次数: "+count);
+        $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
+    }
+}
+
+var prev_writed_Epc = "";
 var tagCheckType = [{val:0, status:"未读出内容"},
     {val:3, status: "密码未知"},
     {val:7, status: "完整读出"},
@@ -322,7 +354,7 @@ function onfindTagUpdate(jo)    {
         for(var i=0; i<tagCheckType.length; i++)   {
             if (rdmask === tagCheckType[i].val) {
                 rec.usingmode = tagCheckType[i].status;
-                    break;
+                break;
             }
         }
     }
@@ -336,119 +368,117 @@ function onfindTagUpdate(jo)    {
         }
     }
 
-    rec.epc = jo.epc;
+    rec.epc = jo.epc;    
     if (jo.epcSize !== undefined)
         rec.epcBits = jo.epcSize*8;
-//#    rec.tagPc = jo.epcPC;
     rec.context = jo.barcode;
     rec.tagserial = jo.serialNo;
     if (jo.accessPwd !== undefined && jo.killPwd !== undefined) {
-//#        rec.passwd = jo.accessPwd;
         rec.passwd = jo.accessPwd + "/" + jo.killPwd;
     }
     //提交显示
     if (rowid >= $("#foundtagTab").datagrid('getRows').length)  {
         $("#foundtagTab").datagrid('appendRow', rec);
-    }   else {
-        $("#foundtagTab").datagrid('updateRow', {index: rowid, row: rec });
+    }
+    else {
+        $("#foundtagTab").datagrid('updateRow', {index: rowid, row: rec });        
+    }
+
+    //---- "写安全位"相关view的随动 [*应该建一个rows缓存池，在手工选择标签时再随动的！]
+    if (jo["fmtId"] !== undefined)  {
+        if (jo["fmtId"] ===0)    {
+            if (jo.securityBit !== undefined)   {
+                if (jo.securityBit ===0)
+                    $("#securityBitNew").combobox('select', 1);
+                else
+                    $("#securityBitNew").combobox('select', 0);
+            }
+        }
+    }
+
+    //---- 快速模式，发现可用标签即停扫描
+    if ($("#selWrtagFast").switchbutton("options").checked && hotWriteObj.barcode.length>0) {
+        if (getValidTag() >=0)  {
+            if (scanRuning)     {
+                console.log("fastmode, scan stop");
+                runFindTag();   //stop. 这里有很大的几率会停止失败！
+            }
+        }
     }
 }
 
-//event响应：读写器扫描待写标签发出的event
-function onfindTagTick(count)    {
-    if (count<0)    {
-        //搜索停止
-        $("#btnFindTag").linkbutton({"text": "查找标签"});
-        if ($("#foundtagTab").datagrid('getRows').length>0) {
-            $("#btnWriteTag").linkbutton('enable');
-            $("#btnKillTag").linkbutton('enable');
-        }
-        if (scanRuning) {
-            var validId = -1;
-            var rows = $("#foundtagTab").datagrid('getRows');
-            for(var i=0; i<rows.length; i++)    {
-                if (rows[i].format === "空白" && rows[i].usingmode === "完整读出"
-                        &&rows[i].epcBits>=hotWriteObj.reqEpcBits)     {
-                    hotWriteObj.tagSerial = rows[i].tagserial;
-                    validId = i;
-                    break;
-                }
+//手工选择标签
+function onFoundTagSelect(index, row)  {
+    if (_clientId !==1)
+        return;
+    if (!scanRuning)    {
+        if (hotWriteObj.barcode.length>0)   {
+            $("#barcodeStatus").val("选择标签");
+            if (row.usingmode === "完整读出" && row.epcBits >=hotWriteObj.reqEpcBits)  {
+                hotWriteObj.poolId = index;
+                hotWriteObj.tagSerial = row.tagSerial;
+                $("#barcodeStatus").val("选择标签: ");
+                $("#usingTag").textbox('setValue', row.epc);
+                $("#btnWriteTag").linkbutton('enable');
             }
-            if (validId>=0)     {
-                $("#foundtagTab").datagrid('selectRow', validId);
-                $("#barcodeStatus").val("可以写入=>");
-                $("#usingTag").textbox('setValue', hotWriteObj.epc);
-                hotWriteObj.poolId = validId;
-                //写入动作B: 条码输入后，没有可用标签（且不在扫描中)，自动或手动开启找标签，找到空白标签即写入
-                if (hotWriteObj.barcode.length>0 && hotWriteObj.epc.length >0)   {
-                    writeTag();
-                }
-            }   else    {
-                if (hotWriteObj.barcode.length>0)  {
+            else    {
+                hotWriteObj.poolId = -1;
+                $("#usingTag").textbox('setValue', "");
+                if (hotWriteObj.barcode.length>0)   {
                     $("#barcodeStatus").val("条码-标签不匹配");
                 }
-                else {
-                    $("#barcodeInput").textbox('textbox').focus();
-                    $("#barcodeStatus").val("扫描停止");
-                }
             }
         }
-        scanRuning = false;
-    }   else {
-        $("#barcodeStatus").val("扫描次数: "+count);
+        $("#btnKillTag").linkbutton('enable');
+        //
+        if (row.format === "标准格式")      //不规范@
+            $("#btnWrSecurityBit").linkbutton('enable');
+        else
+            $("#btnWrSecurityBit").linkbutton('disable');
+
+        if (row.epcBits <80)
+            $("#btnEpcSizeRebuild").linkbutton('enable');
+        else
+            $("#btnEpcSizeRebuild").linkbutton('disable');
     }
 }
+
 
 var wrTagStatus = ["写EPC失败", "写失败：不能写入User区","写失败：未能写入密码","标签安全设定失败",
         "写入后校验错","标签写入成功"];
 //执行标签写入
 function writeTag()   {
-    if (hotWriteObj.poolId <0 || hotWriteObj.epc.length<4)  {
+    if (hotWriteObj.poolId <0 || hotWriteObj.barcode.length<4)  {
         $("#barcodeStatus").val("条码-标签错误，不能写");
+        $("#barcodeInput").textbox('textbox').focus();
         return (false);
     }
-    if ($("#foundtagTab").datagrid('getRows')[hotWriteObj.poolId].epcBits < hotWriteObj.reqEpcBits) {
-        return(false);
-    }
-
     $("#btnWriteTag").linkbutton('disable');
     $("#barcodeStatus").val("正在写入...");
-/*
-    devwrapper.writeTag(hotWriteObj.poolId, hotWriteObj.barcode, hotWriteObj.epc, 0, function(joRes)  {
-        if (joRes.result>=0 && joRes.result<=5)   {
-            $("#barcodeStatus").val(wrTagStatus[joRes.result]);
-        }
-        if (joRes.result ===5)   {
-            updateWritedRecord(joRes, false);
-            //条码输入界面刷新
-            $("#usingTag").textbox('setValue', '['+hotWriteObj.barcode+']');
-            $("#barcodeInput").textbox('setValue', "");     //效果不好，但必须
-            $("#barcodeInput").textbox('textbox').focus();
-            hotWriteObj.poolId = -1;
-            hotWriteObj.epc = "";
-            hotWriteObj.barcode = "";       //
-        }
-    });
-*/
-    doDevCommand("tagWrite",[hotWriteObj.poolId, hotWriteObj.barcode, hotWriteObj.epc, 0], function(joRes)   {
+//#    doDevCommand("tagWrite",[hotWriteObj.poolId, hotWriteObj.barcode, hotWriteObj.epc, 0], function(joRes)   {
+    doDevCommand("tagWrite",[hotWriteObj.poolId, hotWriteObj.barcode, "", 0], function(joRes)   {
         if (joRes.data[0].result>=0 && joRes.data[0].result<=5) {
             $("#barcodeStatus").val(wrTagStatus[joRes.data[0].result]);
         }
-        if (joRes.data[0].result ===5)   {
-            updateWritedRecord(joRes.data[0], false);
+        if (joRes.data[0].result ===5)   {            
+            wrEventsCursor = joRes.data[0].cursorRow;
+            setGridviewCursor($("#wrEventTab"), wrEventsCursor);
+
+            $("#writedCount").textbox('setValue', joRes.data[0].wrCount);
+            prev_writed_Epc = joRes.data[0].epc;
+
             //条码输入界面刷新
             $("#usingTag").textbox('setValue', '['+hotWriteObj.barcode+']');
             $("#barcodeInput").textbox('setValue', "");     //效果不好，但必须
-            $("#barcodeInput").textbox('textbox').focus();
             hotWriteObj.poolId = -1;
             hotWriteObj.epc = "";
             hotWriteObj.barcode = "";       //
+            $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
         }
     });
     $("#btnWriteTag").linkbutton('enable');
     return(true);
 }
-
 
 function killTag()  {
     var id = $("#foundtagTab").datagrid('getRowIndex', $("#foundtagTab").datagrid('getSelected'));
@@ -466,13 +496,14 @@ function killTag()  {
             $("#barcodeInput").textbox('setValue', "");
             hotWriteObj.barcode = "";
             //执行kill
-/*            devwrapper.killTag(id, function(joRes)  {
-                if (joRes.result !== 0)   {
-                    updateWritedRecord(joRes, true); */
             doDevCommand("tagKill",[id], function(joRes)   {
                 if (joRes.result)   {
-                    updateWritedRecord(joRes.data[0], true);
+                    wrEventsCursor = joRes.data[0].cursorRow;
+                    setGridviewCursor($("#wrEventTab"), wrEventsCursor);
+                    $("#killCount").textbox('setValue', joRes.data[0].killCount);
+
                     $("#barcodeStatus").val("标签已灭活");
+                    $("#barcodeInput").textbox('textbox').focus();  //光标，等条码输入
                     //启动查找
                     runFindTag();   //start
                 }
@@ -486,74 +517,35 @@ function killTag()  {
     }});
 }
 
-//标签写入和灭活后的记录table显示
-function updateWritedRecord(joRes, isKill)   {
-    var rec = {
-        evtype: "写入",
-        wrtime:"",
-        tagformat:""
+//改写预定义项(安全位，EPCsize)
+function writeDefinedItemWord(item_oid)     {
+    var poolid = $("#foundtagTab").datagrid('getRowIndex', $("#foundtagTab").datagrid('getSelected'));
+    if (poolid <0)  {
+        return(false);
     }
-    var dt = new Date();
-    rec.wrtime = formatTime(dt);
-    if (isKill)
-        rec.evtype = "灭活";
+    $("#btnWrSecurityBit").linkbutton('disable');
+    $("#barcodeStatus").val("正在写入...");
 
-    rec.context = joRes.context;
-    rec.epc = joRes.epc;
-    rec.tagserial = joRes.tagSerial;
-    if (!isKill)    {
-        rec.wrUsrBank = joRes.writeUsrBank;
-        rec.locked = joRes.setLocker;
-    }
+    var secBit = parseInt($("#securityBitNew").combobox('getValue'));
+    doDevCommand("tagWriteEpcItem",[poolid, item_oid, secBit], function(joRes)   {
+        if (joRes.result)   {
+            $("#barcodeStatus").val("写入成功");
+            if (item_oid ===111)
+            {
+                //更新已知标签表格的部分字段(new epc)
+                $("#foundtagTab").datagrid('updateRow', {index: poolid,
+                    row: {epc : joRes.data[0].epc }
+                });
+                //event表显示
+                wrEventsCursor = joRes.data[0].cursorRow;
+                setGridviewCursor($("#wrEventTab"), wrEventsCursor);
+            }
 
-    var rowid = -1;
-    if (isKill) {
-        $("#killCount").textbox('setValue', joRes.killCount);
-    }
-    else if (joRes.wrCount > mWritedCount)    {
-        mWritedCount = joRes.wrCount;     //
-        $("#writedCount").textbox('setValue', mWritedCount);
-    }
-    else {
-        rec.evtype = "改写";
-        //列表中查找
-        try {
-            wrEventBuf.forEach(function(row, rid)   {
-                if (row.tagserial === rec.tagserial)    {
-                    rowid = rid;
-                    throw new Error("EndInterative");
-                }
-            });
-        }   catch(e)   {
-            if (e.message !== "EndInterative")   throw e;
+        }   else    {
+            $("#barcodeStatus").val("写入失败");
         }
-    }
-    //更新列表显示
-    var pageNo = parseInt($("#wrEventTab").datagrid("options").pageNumber);
-    var pagesize = parseInt($("#wrEventTab").datagrid("options").pageSize);
-    if (rowid >=0)  {           //update
-        for (var tmpfiled in wrEventBuf[rowid]) {
-            if (rec[tmpfiled] !== undefined)
-                wrEventBuf[rowid][tmpfiled] = rec[tmpfiled];    //这里还有点Bug:如果初始rows[]中没有的field，是不会加入的
-        }
-        if (rowid >=(pageNo-1)*pagesize && rowid<pageNo*pagesize)   {   //当前页内
-            $("#wrEventTab").datagrid('refreshRow', (rowid % pagesize));
-            $("#wrEventTab").datagrid('selectRow', (rowid % pagesize));      //光标
-        }
-    }   else {                  //append
-        if (isKill)
-            rec.count = joRes.killCount;
-        else
-            rec.count = joRes.wrCount;
-        rowid = wrEventBuf.length;
-        wrEventBuf.push(rec);
-        if (pageNo*pagesize <= rowid)    {
-            $("#wrEventTab").datagrid('loadData', wrEventBuf);
-            $("#wrEventTab").datagrid('getPager').pagination('select', Math.floor(rowid/pagesize+1));
-        }  else {
-            $("#wrEventTab").datagrid('appendRow', rec);
-        }
-        $("#wrEventTab").datagrid('selectRow', (rowid % pagesize));     //光标。selectRow的行id是base-0的        
-    }
+        $("#barcodeInput").next('span').find('input').focus();  //设置焦点
+    });
+    $("#btnWrSecurityBit").linkbutton('enable');
 }
 

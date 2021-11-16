@@ -9,7 +9,7 @@
 
 ContainerWindow::ContainerWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::ContainerWindow)
+    ui(new Ui::ContainerWindow), wschannel(), devwrapper(this)
 {
     ui->setupUi(this);
 
@@ -23,12 +23,29 @@ ContainerWindow::ContainerWindow(QWidget *parent) :
     setFocusPolicy(Qt::ClickFocus);
     setWindowIcon(QPixmap(":/res/list_bullets_48px.png"));
 //    QNetworkProxyFactory::setUseSystemConfiguration(false);
-    setupFace();
+
+    wschannel.registerObject(QStringLiteral("devwrapper"),&devwrapper);
+    loadWebView();
+//    setupFace();
+
+    //
+    m_tfcardPath = "/media/hcsd";
+    m_udiskPath = "/media/udisk";
+    localTools = new LocalToolBar(this);
+    addToolBar(localTools);
+#if defined(ARM) || defined(A64)
+    fsWatcher.addPath("/media");
+    connect(&fsWatcher, SIGNAL(directoryChanged(QString)), localTools, SLOT(onSysDeviceChange(QString)));
+#endif
+    localTools->setAutoShow(5000);
 
     //网络检测
     m_netInfo.netStatus = 0;
     netChecker = new NetworkChecker(NULL);          //手工delete
-    connect(netChecker, SIGNAL(sigCheckNetDone(NetworkInfo_t)), this, SLOT(onNetworkStatusUpdate(NetworkInfo_t)));
+//    connect(netChecker, SIGNAL(sigCheckNetDone(NetworkInfo_t)), this, SLOT(onNetworkStatusUpdate(NetworkInfo_t)));
+    connect(netChecker, &NetworkChecker::sigCheckNetDone, this, [=](NetworkInfo_t netInfo)    {
+        m_netInfo = netInfo;
+    });
     netChecker->moveToThread(&netmgrThread);
     netmgrThread.start();
 
@@ -39,6 +56,7 @@ ContainerWindow::ContainerWindow(QWidget *parent) :
     });
     startAppTimer->start(2000);
 
+    ui->statusBar->hide();
 }
 
 ContainerWindow::~ContainerWindow()
@@ -46,37 +64,57 @@ ContainerWindow::~ContainerWindow()
     delete ui;
 }
 
-void ContainerWindow::setupFace()
+void ContainerWindow::loadWebView()
 {
-    naviToolBar = new NaviToolBar(this);
-    addToolBar(naviToolBar);
-    connect(naviToolBar, SIGNAL(navigationAction(int)), this, SLOT(onNaviAction(int)));
-    connect(naviToolBar,&NaviToolBar::urlInput, [this](QString urlStr)  {
-        m_webview->setUrl(QUrl::fromUserInput(urlStr));
-    });
-
+//    m_webview = new WebPageView(this);
     m_webview = new WebSinglePageView(this);
     WebPage *page = new WebPage(QWebEngineProfile::defaultProfile(), m_webview);
     m_webview->setPage(page);
 
-    QString htmlPath = QCoreApplication::applicationDirPath() + "/URfidwritor.html";
-    m_webview->load(QUrl("file://"+htmlPath));
-//    m_webview->setUrl(QUrl(QStringLiteral("http://163.com")));
+#ifdef USE_LOCAL_WEBSERVER
+    QUrl url = QUrl(QStringLiteral("http://localhost:2280/urfidbooks.html"));
+#else
+    QUrl url = QUrl("file://" + QCoreApplication::applicationDirPath() + "/urfidbooks.html");
+#endif
 
-    connect(m_webview, SIGNAL(loadProgressStatus(int)), this, SLOT(onWebProgress(int)));
-    connect(m_webview, SIGNAL(naviActionChanged(QWebEnginePage::WebAction, bool)),
-            this, SLOT(onNaviEnabledChanged(QWebEnginePage::WebAction, bool)));
+    m_webview->setUrl(url);
 
     connect(m_webview, &QWebEngineView::urlChanged,[this](const QUrl &url) {
-        naviToolBar->setUrlLine(url.toString());
+        ui->statusBar->showMessage(url.toString());
+    });
+//    connect(m_webview, &WebPageView::loadProgressStatus, [=](int progress) {
+    connect(m_webview, &WebSinglePageView::loadProgressStatus, [=](int progress) {
+#ifdef USE_LOCAL_WEBSERVER
+        if (progress<0)     //服务端未运行，加载失败，重新连接
+        {
+            loadNodejsServer();
+
+            QEventLoop loop;
+            QTimer::singleShot(1000, &loop, SLOT(quit()));
+            loop.exec(QEventLoop::ExcludeUserInputEvents);
+            m_webview->setUrl(url);
+        }
+#else
+    Q_UNUSED(progress);
+#endif
+    });
+    connect(m_webview, &WebSinglePageView::naviActionChanged, [this](QWebEnginePage::WebAction, bool) {
+    });
+    connect(m_webview, &WebSinglePageView::linkHovered, [this](const QUrl &url)   {
+        ui->statusBar->showMessage(url.toString());
+    });
+    connect(m_webview, &WebSinglePageView::onDownloading, [this](QString prompt)    {
+        ui->statusBar->showMessage(prompt, 0);
     });
 
     setCentralWidget(m_webview);
+    centralWidget()->setObjectName("workClient");
 
-    ui->statusBar->hide();
-    naviToolBar->hide();
+    connect(&devwrapper, SIGNAL(setImeEnble(bool)), m_webview, SLOT(setImeEnable(bool)));
 }
 
+
+#if 0
 void ContainerWindow::safeClose()
 {
     QElapsedTimer rtimer;
@@ -118,6 +156,7 @@ void ContainerWindow::safeClose()
 
     this->close();
 }
+#endif
 
 
 void ContainerWindow::closeEvent(QCloseEvent *event)
@@ -125,6 +164,21 @@ void ContainerWindow::closeEvent(QCloseEvent *event)
     Q_UNUSED(event);
     setStyleSheet("background-color: #008080");     //实际不起作用，只是黑屏退出。加后延时会有效，但部分前景还在，很难看
     repaint();
+
+    while(netmgrThread.isRunning())
+    {
+        netmgrThread.quit();
+        netmgrThread.wait();
+    }
+    delete netChecker;
+
+    devwrapper.closeServer();
+    if (nodeProc != NULL)
+    {
+        nodeProc->terminate();      //在未启用webchannel向nodejs发terminae前，要用这个结束nodejs驻留
+        nodeProc = NULL;
+    }
+
 #if 0
     QEventLoop loop;
     QTimer::singleShot(50, &loop, SLOT(quit()));
@@ -143,46 +197,53 @@ void ContainerWindow::timerEvent(QTimerEvent *)
 }
 */
 
-void ContainerWindow::onNaviEnabledChanged(QWebEnginePage::WebAction act, bool enabled)
+void ContainerWindow::loadNodejsServer()
 {
-    switch (act) {
-        case QWebEnginePage::Back:
-            naviToolBar->naviActionEnable(-1, enabled);
-            break;
-        case QWebEnginePage::Forward:
-            naviToolBar->naviActionEnable(1, enabled);
-            break;
-        default:
-            break;
-    }
+//#ifdef USE_LOCAL_WEBSERVER
+    if (nodeProc != NULL)
+        return;
+    nodeProc = new QProcess();
+    nodeProc->setProcessChannelMode(QProcess::SeparateChannels);   //stdout和stderr分开
 
-}
+    connect(nodeProc, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+          [=](int exitCode, QProcess::ExitStatus exitStatus)    {
+        Q_UNUSED(exitCode);
+        Q_UNUSED(exitStatus);
+        nodeProc = NULL;
+    });
+    connect(nodeProc, &QProcess::readyReadStandardOutput, this, [=]()   {
+        while(nodeProc->canReadLine())
+        {
+            QByteArray buffer(nodeProc->readLine());
+            qDebug()<<"nodejs:"<<QString(buffer);
+        }
+    });
+    connect(nodeProc, &QProcess::readyReadStandardError, this, [=]()   {
+        qDebug()<<"nodeErr:"<<QString(nodeProc->readAllStandardError());
+    });
 
-void ContainerWindow::onWebProgress(int progress)
-{
-    if (progress>0 && progress<100)
-    {
-        naviToolBar->naviChangeRefreshIcon(false);
-    }
-    else
-    {
-        naviToolBar->naviChangeRefreshIcon(true);
-    }
-}
 
-void ContainerWindow::onNaviAction(int indexMode)
-{
-    if (indexMode == -1)
-    {
-        m_webview->triggerPageAction(QWebEnginePage::Back);
-    }
-    else if (indexMode == 1)
-    {
-        m_webview->triggerPageAction(QWebEnginePage::Forward);
-    }
-}
+    QString workdir = QCoreApplication::applicationDirPath();
+    workdir = workdir.left(workdir.indexOf('-'));       //去掉proj-build-pc的后段
+    nodeProc->setWorkingDirectory(workdir);
+    QStringList args;       //注意，args中String不能包含空格！
+    args <<"wod-index.js";
 
-void ContainerWindow::onNetworkStatusUpdate(NetworkInfo_t netInfo)
-{
-    m_netInfo = netInfo;
+#ifdef NODEJS_EMBED_PROC
+    nodeProc->start(tr("node"), args);
+    if (!nodeProc->waitForStarted(100))
+    {
+        QMessageBox::warning(this,tr("warning"), "QProcess启动nodejs失败");
+        nodeProc = NULL;
+    }
+    qDebug()<<"run nodejs in Qt-process..";
+#else
+    if (!nodeProc->startDetached(tr("node"), args))     //Detach方式不能用waitForStarted()判断启动成功
+    {
+        QMessageBox::warning(this,tr("warning"), "QProcess启动nodejs失败");
+        nodeProc = NULL;
+    }
+    qDebug()<<"run nodejs detached.";
+#endif
+//#endif
 }

@@ -1,8 +1,6 @@
 #include "urfidwrapper.h"
 #include "containerwindow.h"
 #include <QDebug>
-//#include <QMainWindow>
-//#include <QStatusBar>
 #include <QFileDialog>
 #include <QHostInfo>
 #include <QTreeView>
@@ -15,9 +13,11 @@ void URfidWrapper::sysClose()
         invent.runInventify(false);
 
     ContainerWindow *mainwin = qobject_cast<ContainerWindow*>(this->parent());
-    mainwin->safeClose();
+    mainwin->closeWebPage();
+    QTimer::singleShot(100, mainwin, SLOT(close()));        //延时关闭，直接关会有异常
 }
 
+//=========================== 扩展功能 ============================================================
 
 QJsonObject URfidWrapper::execDbSql(QString queryCmd, QJsonArray param)
 {
@@ -49,6 +49,7 @@ QJsonObject URfidWrapper::execDbSql(QString queryCmd, QJsonArray param)
     //
     QSqlQuery sql(dbstore._db);
     sql.prepare(queryCmd);
+//    qDebug()<<queryCmd;
     for (int i=0; i<param.count(); i++)
     {
         sql.bindValue(i, param.at(i).toVariant());
@@ -75,10 +76,11 @@ QJsonObject URfidWrapper::execDbSql(QString queryCmd, QJsonArray param)
         joRes["rows"] = joRows;
     }
     else
-    {
+    {        
         joErr["code"] = sql.lastError().type();
         joErr["message"] = sql.lastError().text();
         joRes["error"] = joErr;
+//        qDebug()<<"err query:"<<sql.lastQuery()<<param[0]<<param[1]<<param[2];
     }
     return(joRes);
 }
@@ -102,11 +104,17 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
         joRes["message"] = "file exists, can not overwrite.";
         return(joRes);
     }
-    if (!QDir(QCoreApplication::applicationDirPath() + "/csv/").exists())
+/*    if (!QDir(QCoreApplication::applicationDirPath() + "/csv/").exists())
     {
         QDir(QCoreApplication::applicationDirPath()).mkdir("csv");
     }
     mfilename = QCoreApplication::applicationDirPath() + "/csv/" + mfilename;
+*/
+    if (!QDir(QCoreApplication::applicationDirPath() + "/reports/").exists())
+    {
+        QDir(QCoreApplication::applicationDirPath()).mkdir("reports");
+    }
+    mfilename = QCoreApplication::applicationDirPath() + "/reports/" + mfilename;
     if (tabSelect<0 || tabSelect>3)
     {
         joRes["message"] = "table select error.";
@@ -130,6 +138,7 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
         joRes["records"] = res;
         joRes["message"] = QString("数据导出成功，共:%1 条记录").arg(res);
     }
+    joRes["filename"] = mfilename;
     //
     if (tabSelect ==2)
     {
@@ -144,12 +153,12 @@ QJsonObject URfidWrapper::exportDbRecords(int tabSelect, QString filename)
     {
         invent.inventClear(false);      //硬清除
         _inventScanTick = 0;
-//        emit(inventScanChanged());
-        sendInventCounts();
+//        sendInventCounts();
     }
     //
     return(joRes);
 }
+
 
 QString URfidWrapper::getExtMediaPath()
 {
@@ -192,7 +201,8 @@ QString URfidWrapper::doSysFileOpenDialog(QString initDir, QString filter)
     {
         pTreeView->setSelectionMode(QAbstractItemView::MultiSelection);
     }
-    selfile.setFixedSize(720, 720);
+//    selfile.setFixedSize(720, 720);
+    selfile.setGeometry(320, 40, 640, 640);
 
     QString filenames = "";
     if (selfile.exec()==QDialog::Accepted)
@@ -272,10 +282,22 @@ QJsonArray URfidWrapper::getSysConfigs()
     jRow["editor"] = "";
     joRes.append(jRow);
 
+    QSettings* ini = new QSettings("./config.ini",QSettings::IniFormat);
+    QString s1 = ini->value("/Operator/OperatorName").toString();
     jRow["name"] = "操作员";
-    jRow["value"] = wrProxy.writeRec.operatorName;
+    jRow["value"] = s1;
+//    jRow["value"] = wrProxy.writeRec.operatorName;
+//    qDebug()<<"operator name2:"<<wrProxy.writeRec.operatorName;
     jRow["editor"] = "text";
     joRes.append(jRow);
+
+    s1 = ini->value("/Operator/OperatorPasswd").toString();
+    jRow["name"] = "工作密码";
+    jRow["value"] = s1;
+    jRow["editor"] = "text";
+//    jRow["editor"] = "{'type': 'passwordbox'}";
+    joRes.append(jRow);
+
     //group-2
     jRow["group"] = "网络";
     jRow["editor"] = "";
@@ -303,6 +325,7 @@ QJsonArray URfidWrapper::getSysConfigs()
         jComboOptItem["text"] = mainwin->m_netInfo.ssidList.at(i);
         jComboItems.append(jComboOptItem);
     }
+
         //layer-2
     jComboOpt["data"] = jComboItems;
     jComboOpt["panelHeight"] = "auto";
@@ -325,6 +348,7 @@ QJsonArray URfidWrapper::getSysConfigs()
     else
         jRow["editor"] = "text";
     joRes.append(jRow);
+
     //group-3
     jRow["group"] = "功能";
     jRow["name"] = "日期时间";
@@ -353,11 +377,12 @@ QJsonArray URfidWrapper::getSysConfigs()
     joRes.append(jRow);
 
     //
-    jRow["name"] = "文件升级";
+/*    jRow["name"] = "文件升级";
     jRow["editor"] = "text";
     jRow["value"] = _xupdatePrompt;
     joRes.append(jRow);
-
+*/
+//    qDebug()<<"getSysconfig:"<<joRes;
     return(joRes);
 }
 
@@ -368,6 +393,7 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
     int updCnt = 0;
     QString reqSsid = "", reqPsk = "";
     QString reqOperator = "";
+    QString reqUsrPasswd = "";
     bool reqNtp = false;
     QString reqUpdUrl = "";
 
@@ -378,6 +404,8 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
         QString idname = jRow["name"].toString();
         if (idname == "操作员")
             reqOperator = jRow["value"].toString();
+        else if (idname == "工作密码")
+            reqUsrPasswd = jRow["value"].toString();
         else if (idname == "Wifi热点")
             reqSsid = jRow["value"].toString();
         else if (idname == "Wifi密码")
@@ -393,17 +421,22 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
     {
         if (reqNtp)
         {
-            emit mainwin->netChecker->runNtpDate();
+            emit (mainwin->netChecker->runNtpDate());
             updCnt++;
         }
-        if (reqUpdUrl.length()>0)   {}  //waiting....
+//        if (reqUpdUrl.length()>0)   {}  //waiting....
     }
+    QSettings* ini = new QSettings("./config.ini",QSettings::IniFormat);
     if (reqOperator.length()>0)
     {
-        QSettings* ini = new QSettings("./config.ini",QSettings::IniFormat);
         ini->setValue("/Operator/OperatorName", reqOperator);
         wrProxy.writeRec.operatorName = reqOperator;
         wrProxy.killAuxRec.operatorName = reqOperator;
+        updCnt++;
+    }
+    if (reqUsrPasswd.length()>0)
+    {
+        ini->setValue("/Operator/OperatorPasswd", reqUsrPasswd);
         updCnt++;
     }
     if (reqSsid.length()>0 && reqPsk.length()>0)
@@ -412,14 +445,14 @@ int URfidWrapper::setSysConfigs(QJsonArray param)
         updCnt +=2;
     }
     //
-    QString fpath = getExtMediaPath();
+/*    QString fpath = getExtMediaPath();
     if ((reqUpdUrl == "file:/" + fpath)&& fpath.length()>0)
     {
         system("./cpupdfile.sh");
         _xupdatePrompt = "文件已复制，重启更新";
         updCnt++;
     }
-
+*/
     return(updCnt);
 }
 

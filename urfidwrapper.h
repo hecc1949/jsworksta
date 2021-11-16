@@ -3,12 +3,6 @@
 
 #include <QObject>
 #include <QJsonObject>
-/*
-#include "urfidLib/srcdatformat.h"
-#include "urfidLib/writebooktags.h"
-#include "urfidLib/dbstore.h"
-#include "urfidLib/inventproxy.h"
-*/
 #include "srcdatformat.h"
 #include "writebooktags.h"
 #include "dbstore.h"
@@ -17,131 +11,35 @@
 class URfidWrapper : public QObject
 {
     Q_OBJECT
-/*    Q_PROPERTY(int writedCount READ getWritedCount NOTIFY writedCountChanged)
-    Q_PROPERTY(int killCount READ getKillCount NOTIFY writedCountChanged)
-
-    Q_PROPERTY(QString promptMessage READ getpromptMessage NOTIFY promptMessageUpdate)
-*/
-
-/*
-    Q_PROPERTY(int inventScanCount READ getInventScanCount NOTIFY inventScanChanged)
-    Q_PROPERTY(int inventTagNumber READ getInventTagNumber NOTIFY inventScanChanged)
-    Q_PROPERTY(int inventFmtTagNumber READ getInventFmtTagNumber NOTIFY inventScanChanged)
-*/
 public:
     explicit URfidWrapper(QObject *parent = nullptr);
     ~URfidWrapper();
-
-    //srcformat class
-/*    Q_INVOKABLE int checkBarcodeValid(QString barcode);
-    Q_INVOKABLE QString epcEncode(QString barcode, int barcodeType=1);
-*/
-//    Q_INVOKABLE QJsonObject epcDecode(QString epcHex, int formatId = -1);   //不需要
-
-/*
-    Q_INVOKABLE bool openURfidWritor(int inventMode, bool useLocalDb=true);
-    Q_INVOKABLE bool findTagsForWrite(bool start);
-    Q_INVOKABLE QJsonObject writeTag(int poolId, QString barcode, QString epcHex, int usrBankSelect=0);
-    Q_INVOKABLE QJsonObject killTag(int poolId);
-*/
-
-//    Q_INVOKABLE bool setInventifyMode(bool invent);
-//    Q_INVOKABLE bool runInvent(bool startRun, int scanMode);
-//#    Q_INVOKABLE void showSysToolbar(int autoHideTime);
-/*
-    Q_INVOKABLE QJsonObject execDbSql(QString queryCmd, QJsonArray param);
-    Q_INVOKABLE QJsonObject exportDbRecords(int tabSelInvent, QString filename);
-*/
-/*
-    Q_INVOKABLE QString getExtMediaPath();
-    Q_INVOKABLE QString doSysFileOpenDialog(QString initDir, QString filter);
-    Q_INVOKABLE QJsonObject doSysFileCommand(QString cmd, QString srcFiles, QString dstPath);
-*/
-/*
-    Q_INVOKABLE QJsonArray getSysConfigs();
-    Q_INVOKABLE int setSysConfigs(QJsonArray param);
-
-    Q_INVOKABLE QByteArray loadJsonTextFile(QString path);
-    Q_INVOKABLE bool saveJsonTextFile(QByteArray joStr, QString path);
-*/
-/*    int getWritedCount()   const    {
-        return(wrProxy.writeRec.dailyCount);
-    }
-    int getKillCount()   const    {
-        return(wrProxy.killAuxRec.dailyCount);
-    }
-    QString getpromptMessage()  const {
-        return(miscMessage);
-    }
-*/
-
-/*
-    int getInventScanCount() const {
-        return(_inventScanTick);
-    }
-    int getInventTagNumber() const   {
-        return(invent.m_InventLet.count()+invent.m_unExportCount);
-    }
-    int getInventFmtTagNumber() const   {
-        return(invent.m_baseFormatTagCount+invent.m_unExpFormatTagCount);
-    }
-
-
-    Q_INVOKABLE int getInventScanPeriod()   {
-        return(invent.scanIntfTime);
-    }
-*/
-
-//    QString miscMessage;
+    void closeServer();
 
     Q_INVOKABLE QJsonObject doCommand(QString cmd, QJsonArray param);
-
 signals:
-/*    void findTagTick(int count);        // <0参数 =>停止
-    void findTagUpdate(QJsonObject jo);
-*/
-/*
-    void inventScanChanged();
-    void inventScanModeUpdate(bool detailScan);
-    void inventTagUpdate(QJsonObject jo);
-
-    void writedCountChanged();          //
-    void promptMessageUpdate(int level);
-*/
-
     void setImeEnble(bool enable);      //up to WebEngineView
-
-    void onDeviceEvent(QJsonObject);    //webchannel, to javascript. 统一封装event输出
+//    void onDeviceEvent(QJsonObject);    //webchannel, to javascript. 统一封装event输出
+    void deviceEvent(QJsonObject);    //webchannel, to javascript. 统一封装event输出
 
 public slots:
-/*    void toggleInventMode();
-    void inventResetLet(bool discard);
-    void inventSetGroupId(int grpId);
-    void setInventScanPeriod(int time_ms);
-*/
 
-/*    void imeEnable(bool en) {       //receive from js
-        emit(setImeEnble(en));
-    }
-    void sysClose();
-*/
 private:
     RfidReaderMod *rfidDev = NULL;
     SrcdatFormat srcformat;
     WriteBookTags wrProxy;
-    bool reqForWrite = false;
+//    bool reqForWrite = false;
 
     DbStore dbstore;
+    QString miscMessage;
 
     InventProxy invent;
-
     bool _inventMode = false;
     int _inventScanTick = 0;
 
     QString _xupdatePrompt = "";
 
-    QString miscMessage;
-
+    //读写器接口
     bool openURfidWritor(int inventMode, bool useLocalDb=true);
     bool setInventifyMode(bool invent);
     void setMiscMessage(QString msg, int level);
@@ -151,14 +49,17 @@ private:
     bool findTagsForWrite(bool start);
     QJsonObject writeTag(int poolId, QString barcode, QString epcHex, int usrBankSelect=0);
     QJsonObject killTag(int poolId);
+    QJsonObject writeEpcBankWord(int poolId, int item_oid, int value);
 
+    //js接口封装
     QJsonObject doInventCommand(QString cmd, QJsonArray param);     //doCommand的二次分发函数
     QJsonObject doTagwrCommand(QString cmd, QJsonArray param);
     QJsonObject doMiscCommand(QString cmd, QJsonArray param);
 
-    void sendInventCounts();                //小的sub-function
+//    void sendInventCounts();                //小的sub-function
     void sendTagwrRunValue(QJsonObject jo);
 
+    //扩展功能
     void sysClose();
     QString getExtMediaPath();
     QString doSysFileOpenDialog(QString initDir, QString filter);
@@ -172,17 +73,18 @@ private:
     bool saveJsonTextFile(QByteArray joStr, QString path);
 
 private slots:
+    //接收来自读写器的signal
+        //write-tag
     void dev_cmdResponse(QString info, int cmd, int status);
     void dev_errMsg(QString info, int errCode);
     void dev_readMemBank(Membank_data_t bankdat, int info);
 
     void onReadTagPoolUpdate(IdentifyEPC_t tagEpc, int infoSerial);
     void onReadTagTick(int count, int updId);
-    //invent功能
+        //invent功能
     void onInventTickAck(int para);
     void onInventChangeMode(int mode);
     void onInventUpdate(QByteArray epc, InventifyRecord_t *pRec, bool isNew);
-
 };
 
 #endif // URfidWrapper_H

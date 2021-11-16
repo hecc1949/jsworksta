@@ -8,12 +8,11 @@ body {
 #banner  {
     background-image:url('images/411.png'); 
     color:blue;
-    font-size:2em;
+    font-size:1.8em;
     font-family: msyh;
     margin:0;
-    margin-bottom:5px;
     text-align: center; 
-    height:50px;
+    height:42px;
     margin-top:2px;
     margin-bottom:2px;
 }
@@ -23,6 +22,8 @@ body {
     height:36px;
     background:rgb(101, 159, 235); 
     padding:1px;
+    font-size: 1.2em;
+/*    color:yellow; */
 }
 
 /* 所有button的style */
@@ -59,6 +60,15 @@ body {
     font-size: 1.0em;
     font-weight: normal;
     font-family: msyh;
+}
+/* datagrid的表头高度 */
+.datagrid-header-row    {
+    height: 28px
+}
+
+/* datagrid行高。只能全局一致 */
+.datagrid-row {
+    height: 25px
 }
 
 /* 条码状态提示textbox */
@@ -100,12 +110,4 @@ body {
     font-size:18px,
     color: blue;
 }
-
-
-/*
-.label-left, .label-top,
-.easyui-validatebox    {
-    font-size: 1.1em;
-}
-*/
 

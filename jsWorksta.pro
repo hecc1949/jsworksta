@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui webenginewidgets webchannel    \
+QT       += core gui webenginewidgets webchannel websockets   \
         serialport sql network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
@@ -12,7 +12,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = jsWorksta
 TEMPLATE = app
 
-VERSION = 0.1.1
+VERSION = 0.2.0
 DEFINES += VERSION_STRING=\\\"$${VERSION}\\\"
 
 INCLUDEPATH += $$PWD/../urfidLib/inc
@@ -30,9 +30,10 @@ else    {
     LIBS += -L$$PWD/../urfidLib-build-pc -lurfid
 }
 
-usrhtml.files = URfidwritor.html urfidwr.js urfidView.css
-usrhtml.files += easyui-lang-zh_CN.js utils.js urfidMisc.js urfidInvent.js
+usrhtml.files = urfidbooks.html urfidView.css easyui-lang-zh_CN.js
 usrhtml.files += jquery.easyui.min.js jquery.min.js easyui.css icon.css
+usrhtml.files += wod-index.js devlinker.js
+usrhtml.files += utils.js urfidMisc.js urfidInvent.js urfidwr.js
 INSTALLS += usrhtml
 
 #message($$usrhtml.files)
@@ -55,15 +56,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         containerwindow.cpp \
-    navitoolbar.cpp \
     websinglepageview.cpp \
     urfidwrapper.cpp \
     networkchecker.cpp \
-    urfidAux.cpp
+    urfidAux.cpp \
+    localtoolbar.cpp \
+    netconfigdialog.cpp \
+    websocketchannel.cpp
 
 HEADERS += \
         containerwindow.h \
-    navitoolbar.h \
     websinglepageview.h \
     urfidwrapper.h  \
     ../urfidLib/inc/srcdatformat.h \
@@ -73,11 +75,15 @@ HEADERS += \
     ../urfidLib/inc/gpiodev.h \
     ../urfidLib/inc/dbstore.h  \
     ../urfidLib/inc/inventproxy.h \
-    networkchecker.h
+    networkchecker.h \
+    localtoolbar.h \
+    netconfigdialog.h \
+    websocketchannel.h
 
 FORMS += \
         containerwindow.ui \
-    passworddlg.ui
+    passworddlg.ui \
+    netconfigdialog.ui
 
 RESOURCES += \
     resources.qrc
@@ -92,5 +98,8 @@ DISTFILES += \
     EpcDefItems.json \
     banksConfig.json \
     urfidInvent.js \
-    urfidMisc.js
+    urfidMisc.js \
+    wod-index.js \
+    urfidbooks.html \
+    devlinker.js
 

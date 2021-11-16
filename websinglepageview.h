@@ -60,7 +60,7 @@ signals:
 private:
     int m_loadProgress = 0;
     QList<QWebEngineDownloadItem *> m_downloads;
-    URfidWrapper m_urfidWrapper;
+//    URfidWrapper m_urfidWrapper;
     bool g_ImeEnable = false;
 
 private Q_SLOTS:

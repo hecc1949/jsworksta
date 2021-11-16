@@ -9,5 +9,9 @@
         <file>res/list_bullets_48px.png</file>
         <file>res/go-next.png</file>
         <file>res/go-previous.png</file>
+        <file>res/format_clear_32.png</file>
+        <file>res/Save_32.png</file>
+        <file>res/wifi.png</file>
+        <file>res/clear.png</file>
     </qresource>
 </RCC>
